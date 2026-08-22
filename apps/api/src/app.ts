@@ -1,3 +1,4 @@
+import { db, client } from "./db.js";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import express from "express";
@@ -9,9 +10,11 @@ import { errorHandler } from "./core/errors/error-handler.js";
 import { logger } from "./core/logger/index.js";
 import { notFoundHandler } from "./core/middleware/not-found.js";
 
-export const app = express();
 
-const { db, client } = createDb(env.DATABASE_URL);
+import { createAuthRouter } from "./modules/auth/routes/auth.routes.js";
+
+
+export const app = express();
 
 app.use(
     pinoHttp({
@@ -31,6 +34,9 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+
+
+app.use("/auth", createAuthRouter());
 
 app.get("/health", async (_req, res, next) => {
     try {
