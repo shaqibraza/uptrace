@@ -1,17 +1,22 @@
 import { hash } from "@node-rs/argon2";
 import { UserRepository } from "../repositories/user.repository.js";
-import type { RegisterInput } from "../schemas/auth.schema.js";
+import type { LoginInput, RegisterInput } from "../schemas/auth.schema.js";
 import type { EmailVerificationRepository } from "../repositories/email-verification.repository.js";
 import type { EmailService } from "../../../core/email/email.service.js";
 import { buildVerificationEmail } from "../../../core/email/templates/verification-email.js";
 import { env } from "../../../config/env.js";
+import { verify } from "@node-rs/argon2";
+import { SessionRepository } from "../repositories/session.repository.js";
+import { TokenService } from "./token.service.js";
 
 
 export class AuthService {
     constructor(
         private readonly userRepository: UserRepository,
         private readonly emailVerificationRepository: EmailVerificationRepository,
-        private readonly emailService: EmailService
+        private readonly emailService: EmailService,
+        private readonly sessionRepository: SessionRepository,
+        private readonly tokenService: TokenService,
     ) { };
 
     async register(input: RegisterInput) {
@@ -48,7 +53,7 @@ export class AuthService {
         };
     };
 
-    async verifyEmail(rawToken: string){
+    async verifyEmail(rawToken: string) {
         const token = await this.emailVerificationRepository.findValidToken(rawToken);
         if (!token) {
             throw new Error("Invalid or expired verification token");
@@ -62,5 +67,56 @@ export class AuthService {
         await this.emailVerificationRepository.markUsed(token.id);
 
         return user;
-    }
-}
+    };
+
+    async login(input: LoginInput) {
+        const email = input.email.toLowerCase();
+
+        const user = await this.userRepository.findByEmail(email);
+
+        if (!user || !user.passwordHash) {
+            throw new Error("Invalid email or password");
+        };
+
+        const passwordValid = await verify(
+            user.passwordHash,
+            input.password
+        );
+        if (!passwordValid) {
+            throw new Error("Invalid email or password");
+        };
+
+        if (!user.emailVerifiedAt) {
+            throw new Error("Email address is not verified");
+        };
+
+        const session = await this.sessionRepository.create(user.id);
+
+        const accessToken = await this.tokenService.createAccessToken(user.id);
+
+        return {
+            accessToken,
+            refreshToken: session.rawToken,
+            user: {
+                id: user.id,
+                email: user.email,
+                emailVerifiedAt: user.emailVerifiedAt,
+            }
+        }
+    };
+
+    async refresh(refreshToken: string){
+        const session = await this.sessionRepository.rotate(refreshToken);
+
+        if (!session) {
+            throw new Error("Invalid or expired refresh token");
+        };
+
+        const accessToken = await this.tokenService.createAccessToken(session.userId);
+
+        return {
+            accessToken,
+            refreshToken: session.rawToken
+        };
+    };
+};

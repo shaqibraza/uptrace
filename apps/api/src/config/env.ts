@@ -15,6 +15,8 @@ const envSchema = z.object({
     BREVO_FROM_EMAIL: z.string().email(),
     
     BREVO_FROM_NAME: z.string().min(1),
+
+    JWT_ACCESS_SECRET: z.string().min(32),
 });
 
 
