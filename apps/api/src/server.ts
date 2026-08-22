@@ -4,7 +4,6 @@ import { env } from "./config/index.js";
 import { logger } from "./core/logger/logger.js";
 
 
-
 const server = app.listen(env.PORT, () => {
     logger.info(
         { port: env.PORT },
