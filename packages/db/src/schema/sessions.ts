@@ -35,4 +35,6 @@ export const sessions = pgTable("sessions", {
     lastUsedAt: timestamp("last_used_at", {
         withTimezone: true,
     }),
+
+    familyId: uuid("family_id").notNull(),
 });

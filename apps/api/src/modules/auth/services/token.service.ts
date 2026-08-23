@@ -1,4 +1,4 @@
-import { SignJWT } from "jose";
+import { SignJWT, jwtVerify } from "jose";
 
 import { env } from "../../../config/index.js";
 
@@ -17,5 +17,23 @@ export class TokenService {
             .setIssuedAt()
             .setExpirationTime("15m")
             .sign(secret);
-    }
-}
+    };
+
+    async verifyAccessToken(token: string) {
+        try {
+            const { payload } = await jwtVerify(token, secret, {
+                algorithms: ["HS256"]
+            });
+
+            if (typeof payload.sub !== "string") {
+                throw new Error("Invalid access token");
+            };
+
+            return {
+                userId: payload.sub
+            };
+        } catch (error) {
+            throw error;
+        }
+    };
+};

@@ -14,23 +14,31 @@ export class UserRepository {
         return result[0] ?? null;
     };
 
-    async findById(id: string) {
+    async findById(userId: string) {
         const result = await db
-            .select()
+            .select({
+                id: users.id,
+                name: users.name,
+                email: users.email,
+                emailVerifiedAt: users.emailVerifiedAt,
+                createdAt: users.createdAt
+            })
             .from(users)
-            .where(eq(users.id, id))
+            .where(eq(users.id, userId))
             .limit(1);
 
         return result[0] ?? null;
     };
 
     async create(data: {
+        name: string;
         email: string;
         passwordHash: string
     }) {
         const result = await db
             .insert(users)
             .values({
+                name: data.name,
                 email: data.email,
                 passwordHash: data.passwordHash
             })

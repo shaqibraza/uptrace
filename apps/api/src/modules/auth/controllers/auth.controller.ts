@@ -115,4 +115,47 @@ export class AuthController {
             next(error);
         };
     };
+
+    me = async (
+        req: Request,
+        res: Response,
+        next: NextFunction
+    ) => {
+        try {
+            if (!req.user?.id) {
+                throw new Error("Authentication required");
+            };
+
+            const user = await this.authService.getCurrentUser(req.user.id);
+
+            res.status(200).json({
+                success: true,
+                data: {
+                    user
+                }
+            });
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    logout = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const refreshToken = req.cookies?.refreshToken;
+            if (refreshToken) {
+                await this.authService.logout(refreshToken);
+            };
+
+            res.clearCookie("refreshToken", {
+                httpOnly: true,
+                secure: env.NODE_ENV === "production",
+                sameSite: "lax",
+                path: "/auth",
+            });
+
+            res.status(204).send();
+        } catch (error) {
+            next(error);
+        }
+    }
 };

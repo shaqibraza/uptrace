@@ -1,5 +1,5 @@
 import { and, eq, isNull } from "drizzle-orm";
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 
 import { sessions } from "@uptrace/db";
 import { db } from "../../../db.js";
@@ -10,9 +10,12 @@ function hashToken(token: string) {
 };
 
 export class SessionRepository {
-    async create(userId: string) {
+    async create(userId: string, familyId?: string) {
         const rawToken = randomBytes(32).toString("hex");
         const refreshTokenHash = hashToken(rawToken);
+
+        const sessionFamilyId = familyId ?? randomUUID();
+
         const expiresAt = new Date(
             Date.now() + 30 * 24 * 60 * 60 * 1000,
         );
@@ -21,11 +24,13 @@ export class SessionRepository {
             .insert(sessions)
             .values({
                 userId,
+                familyId: sessionFamilyId,
                 refreshTokenHash,
                 expiresAt
             })
             .returning({
                 id: sessions.id,
+                familyId: sessions.familyId,
                 expiresAt: sessions.expiresAt
             });
 
@@ -36,6 +41,7 @@ export class SessionRepository {
 
         return {
             id: session.id,
+            familyId: session.familyId,
             rawToken,
             expiresAt: session.expiresAt
         };
@@ -83,18 +89,74 @@ export class SessionRepository {
     };
 
     async rotate(refreshToken: string) {
-        const currentSession = await this.findByRefreshToken(refreshToken);
+        const refreshTokenHash = hashToken(refreshToken);
+
+        const result = await db
+            .select()
+            .from(sessions)
+            .where(eq(sessions.refreshTokenHash, refreshTokenHash))
+            .limit(1);
+
+        const currentSession = result[0];
+
         if (!currentSession) {
-            return null;
-        };
+            return {
+                status: "invalid" as const,
+            };
+        }
+
+        if (
+            currentSession.revokedAt ||
+            currentSession.expiresAt <= new Date()
+        ) {
+            return {
+                status: "reused" as const,
+                userId: currentSession.userId,
+                familyId: currentSession.familyId,
+            };
+        }
 
         await this.revoke(currentSession.id);
 
-        const newSession = await this.create(currentSession.userId);
+        const newSession = await this.create(
+            currentSession.userId,
+            currentSession.familyId,
+        );
 
         return {
+            status: "rotated" as const,
             userId: currentSession.userId,
-            ...newSession
-        }
+            ...newSession,
+        };
+    }
+
+    async revokeFamily(familyId: string) {
+        await db
+            .update(sessions)
+            .set({
+                revokedAt: new Date(),
+            })
+            .where(
+                and(
+                    eq(sessions.familyId, familyId),
+                    isNull(sessions.revokedAt),
+                ),
+            );
+    }
+
+    async revokeByRefreshToken(rawToken: string) {
+        const refreshTokenHash = hashToken(rawToken);
+
+        await db
+            .update(sessions)
+            .set({
+                revokedAt: new Date(),
+            })
+            .where(
+                eq(
+                    sessions.refreshTokenHash,
+                    refreshTokenHash,
+                ),
+            );
     }
 }
