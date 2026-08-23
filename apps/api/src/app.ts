@@ -12,6 +12,7 @@ import { notFoundHandler } from "./core/middleware/not-found.js";
 
 
 import { createAuthRouter } from "./modules/auth/routes/auth.routes.js";
+import { createOrganizationRouter } from "./modules/organizations/routes/organization.routes.js";
 
 
 export const app = express();
@@ -37,6 +38,7 @@ app.use(cookieParser());
 
 
 app.use("/auth", createAuthRouter());
+app.use("/organizations", createOrganizationRouter());
 
 app.get("/health", async (_req, res, next) => {
     try {

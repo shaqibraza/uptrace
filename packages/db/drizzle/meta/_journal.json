@@ -43,6 +43,13 @@
       "when": 1787480367861,
       "tag": "0005_regular_wallop",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1787512981623,
+      "tag": "0006_abandoned_prism",
+      "breakpoints": true
     }
   ]
 }
