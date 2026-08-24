@@ -4,7 +4,6 @@ import cookieParser from "cookie-parser";
 import express from "express";
 import helmet from "helmet";
 import { pinoHttp } from "pino-http";
-import { createDb } from "@uptrace/db";
 import { env } from "./config/index.js";
 import { errorHandler } from "./core/errors/error-handler.js";
 import { logger } from "./core/logger/index.js";
@@ -13,6 +12,7 @@ import { notFoundHandler } from "./core/middleware/not-found.js";
 
 import { createAuthRouter } from "./modules/auth/routes/auth.routes.js";
 import { createOrganizationRouter } from "./modules/organizations/routes/organization.routes.js";
+import { createProjectRouter } from "./modules/projects/routes/project.routes.js";
 
 
 export const app = express();
@@ -39,6 +39,7 @@ app.use(cookieParser());
 
 app.use("/auth", createAuthRouter());
 app.use("/organizations", createOrganizationRouter());
+app.use("/", createProjectRouter());
 
 app.get("/health", async (_req, res, next) => {
     try {

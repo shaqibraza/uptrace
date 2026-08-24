@@ -5,4 +5,5 @@ export {
     sessions, 
     organizations, 
     organizationMembers,
+    projects,
 } from "./schema/index.js";
