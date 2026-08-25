@@ -6,39 +6,28 @@ import { OrganizationRepository } from "../../organizations/repositories/organiz
 
 import { ProjectRepository } from "../../projects/repositories/project.repository.js";
 
-import { HttpEndpointController } from "../controllers/http-endpoint.controller.js";
-
 import { HttpCheckResultController } from "../controllers/http-check-result.controller.js";
 
 import { HttpEndpointRepository } from "../repositories/http-endpoint.repository.js";
 
 import { HttpCheckResultRepository } from "../repositories/http-check-result.repository.js";
 
-import { HttpEndpointService } from "../services/http-endpoint.service.js";
-
 import { HttpCheckResultService } from "../services/http-check-result.service.js";
 
-export function createHttpEndpointRouter() {
+export function createHttpCheckResultRouter() {
     const router = Router();
-
-    const httpEndpointRepository =
-        new HttpEndpointRepository();
 
     const httpCheckResultRepository =
         new HttpCheckResultRepository();
+
+    const httpEndpointRepository =
+        new HttpEndpointRepository();
 
     const projectRepository =
         new ProjectRepository();
 
     const organizationRepository =
         new OrganizationRepository();
-
-    const httpEndpointService =
-        new HttpEndpointService(
-            httpEndpointRepository,
-            projectRepository,
-            organizationRepository,
-        );
 
     const httpCheckResultService =
         new HttpCheckResultService(
@@ -48,11 +37,6 @@ export function createHttpEndpointRouter() {
             organizationRepository,
         );
 
-    const httpEndpointController =
-        new HttpEndpointController(
-            httpEndpointService,
-        );
-
     const httpCheckResultController =
         new HttpCheckResultController(
             httpCheckResultService,
@@ -60,31 +44,14 @@ export function createHttpEndpointRouter() {
 
     router.use(requireAuth);
 
-    // HTTP endpoint CRUD
-
-    router.post(
-        "/projects/:projectId/http-endpoints",
-        httpEndpointController.create,
+    router.get(
+        "/http-endpoints/:endpointId/check-results/latest",
+        httpCheckResultController.getLatestByEndpointId,
     );
 
     router.get(
-        "/projects/:projectId/http-endpoints",
-        httpEndpointController.list,
-    );
-
-    router.get(
-        "/http-endpoints/:endpointId",
-        httpEndpointController.getById,
-    );
-
-    router.patch(
-        "/http-endpoints/:endpointId",
-        httpEndpointController.update,
-    );
-
-    router.delete(
-        "/http-endpoints/:endpointId",
-        httpEndpointController.delete,
+        "/http-endpoints/:endpointId/check-results",
+        httpCheckResultController.getByEndpointId,
     );
 
     return router;

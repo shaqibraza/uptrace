@@ -14,6 +14,7 @@ import { createAuthRouter } from "./modules/auth/routes/auth.routes.js";
 import { createOrganizationRouter } from "./modules/organizations/routes/organization.routes.js";
 import { createProjectRouter } from "./modules/projects/routes/project.routes.js";
 import { createHttpEndpointRouter } from "./modules/http-monitoring/routes/http-endpoint.routes.js";
+import { createHttpCheckResultRouter } from "./modules/http-monitoring/routes/http-check-result.routes.js";
 
 
 export const app = express();
@@ -42,6 +43,7 @@ app.use("/auth", createAuthRouter());
 app.use("/organizations", createOrganizationRouter());
 app.use("/", createProjectRouter());
 app.use("/", createHttpEndpointRouter());
+app.use("/", createHttpCheckResultRouter());
 
 app.get("/health", async (_req, res, next) => {
     try {
