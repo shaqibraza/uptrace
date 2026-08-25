@@ -6,4 +6,5 @@ export {
     organizations, 
     organizationMembers,
     projects,
+    httpEndpoints,
 } from "./schema/index.js";

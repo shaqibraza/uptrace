@@ -4,3 +4,4 @@ export { sessions } from "./sessions.js";
 export { organizations } from "./organizations.js";
 export { organizationMembers } from "./organization-members.js";
 export { projects } from "./projects.js";
+export { httpEndpoints } from "./http-endpoints.js";
