@@ -1,4 +1,5 @@
 import "dotenv/config";
+import "./modules/telemetry/instrumentation.js";
 import { app } from "./app.js";
 import { env } from "./config/index.js";
 import { logger } from "./core/logger/logger.js";

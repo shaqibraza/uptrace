@@ -8,4 +8,7 @@ export {
     projects,
     httpEndpoints,
     httpCheckResults,
+    traces ,
+    spans,
+    projectApiKeys,
 } from "./schema/index.js";

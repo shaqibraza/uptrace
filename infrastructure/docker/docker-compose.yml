@@ -3,14 +3,18 @@ services:
     image: postgres:17-alpine
     container_name: uptrace-postgres
     restart: unless-stopped
+
     environment:
       POSTGRES_DB: uptrace
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: 123456
+
     ports:
       - "5433:5432"
+
     volumes:
       - uptrace_postgres_data:/var/lib/postgresql/data
+
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d uptrace"]
       interval: 5s
@@ -21,15 +25,33 @@ services:
     image: redis:7-alpine
     container_name: uptrace-redis
     restart: unless-stopped
+
     ports:
       - "6379:6379"
+
     volumes:
       - uptrace_redis_data:/data
+
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
       retries: 5
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: uptrace-otel-collector
+    restart: unless-stopped
+
+    command:
+      - "--config=/etc/otelcol-contrib/otel-collector-config.yml"
+
+    volumes:
+      - ../../otel-collector/otel-collector-config.yml:/etc/otelcol-contrib/otel-collector-config.yml:ro
+
+    ports:
+      - "4317:4317"
+      - "4318:4318"
 
 volumes:
   uptrace_postgres_data:

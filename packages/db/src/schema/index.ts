@@ -6,3 +6,6 @@ export { organizationMembers } from "./organization-members.js";
 export { projects } from "./projects.js";
 export { httpEndpoints } from "./http-endpoints.js";
 export { httpCheckResults } from "./http-check-results.js"
+export { traces } from "./traces.js";
+export { spans } from "./spans.js";
+export { projectApiKeys } from "./project-api-keys.js"
