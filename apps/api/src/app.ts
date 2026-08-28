@@ -15,6 +15,7 @@ import { createOrganizationRouter } from "./modules/organizations/routes/organiz
 import { createProjectRouter } from "./modules/projects/routes/project.routes.js";
 import { createHttpEndpointRouter } from "./modules/http-monitoring/routes/http-endpoint.routes.js";
 import { createHttpCheckResultRouter } from "./modules/http-monitoring/routes/http-check-result.routes.js";
+import { createProjectApiKeyRouter } from "./modules/projects/routes/project-api-key.routes.js";
 
 
 export const app = express();
@@ -44,6 +45,7 @@ app.use("/organizations", createOrganizationRouter());
 app.use("/", createProjectRouter());
 app.use("/", createHttpEndpointRouter());
 app.use("/", createHttpCheckResultRouter());
+app.use("/", createProjectApiKeyRouter());
 
 app.get("/health", async (_req, res, next) => {
     try {
