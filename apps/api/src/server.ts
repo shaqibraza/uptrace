@@ -1,3 +1,4 @@
+import "./telemetry.js";
 import "dotenv/config";
 import "./modules/telemetry/instrumentation.js";
 import { app } from "./app.js";

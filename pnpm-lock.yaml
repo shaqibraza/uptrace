@@ -32,6 +32,9 @@ importers:
       '@opentelemetry/auto-instrumentations-node':
         specifier: ^0.79.0
         version: 0.79.0(@opentelemetry/api@1.9.1)(@opentelemetry/core@2.10.0(@opentelemetry/api@1.9.1))
+      '@opentelemetry/exporter-trace-otlp-http':
+        specifier: ^0.221.0
+        version: 0.221.0(@opentelemetry/api@1.9.1)
       '@opentelemetry/exporter-trace-otlp-proto':
         specifier: ^0.221.0
         version: 0.221.0(@opentelemetry/api@1.9.1)
@@ -77,6 +80,9 @@ importers:
       pino-http:
         specifier: ^11.0.0
         version: 11.0.0
+      protobufjs:
+        specifier: ^8.8.0
+        version: 8.8.0
       undici:
         specifier: ^8.10.0
         version: 8.10.0
@@ -3017,6 +3023,10 @@ packages:
 
   protobufjs@7.6.6:
     resolution: {integrity: sha512-dYDWdjSl5RNb7SgPxGQcRU+GtvP7s2fpkrY0r432PcOIaZ0/rBcxEZnQN67iJhFuQiVw754JDoPruPCNdGsbjg==}
+    engines: {node: '>=12.0.0'}
+
+  protobufjs@8.8.0:
+    resolution: {integrity: sha512-N3xhQ5yyBx3vQq4gubBfASzYhJGNzeDbjqBpu61g7UVylsN/qyffU96TKWD3GbbLOKF82VGNRNvv1+BFgE31Eg==}
     engines: {node: '>=12.0.0'}
 
   proxy-addr@2.0.7:
@@ -6315,6 +6325,10 @@ snapshots:
       '@protobufjs/pool': 1.1.0
       '@protobufjs/utf8': 1.1.2
       '@types/node': 22.15.3
+      long: 5.3.2
+
+  protobufjs@8.8.0:
+    dependencies:
       long: 5.3.2
 
   proxy-addr@2.0.7:

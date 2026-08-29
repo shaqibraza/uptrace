@@ -47,12 +47,16 @@ export function createTelemetryRouter() {
         );
 
     router.post(
-        "/v1/traces",
-        createTelemetryAuthMiddleware(
-            projectApiKeyService,
-        ),
-        telemetryController.ingestTraces,
-    );
+    "/v1/traces",
+    (req, _res, next) => {
+        console.log("=== TELEMETRY ROUTE MATCHED ===");
+        console.log("CONTENT TYPE:", req.headers["content-type"]);
+        console.log("API KEY:", req.headers["x-uptrace-api-key"]);
+        next();
+    },
+    createTelemetryAuthMiddleware(projectApiKeyService),
+    telemetryController.ingestTraces,
+);
 
     return router;
 }

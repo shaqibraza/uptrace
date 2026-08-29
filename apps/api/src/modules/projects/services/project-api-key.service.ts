@@ -141,7 +141,7 @@ export class ProjectApiKeyService {
         projectId: string;
         apiKeyId: string;
         userId: string;
-    }){
+    }) {
         const { membership } = await this.getProjectForUser(data.projectId, data.userId);
 
         this.ensureAdminPermission(
@@ -190,7 +190,7 @@ export class ProjectApiKeyService {
         };
     };
 
-    async authenticate(rawKey: string){
+    async authenticate(rawKey: string) {
         const key = rawKey.trim();
         if (!key) {
             return null;
@@ -198,7 +198,20 @@ export class ProjectApiKeyService {
 
         const keyHash = this.hashKey(key);
 
+        console.log("TELEMETRY AUTH HASH:", {
+            keyPrefix: key.slice(0, 11),
+            keyLength: key.length,
+            keyHash,
+        });
+
         const apiKey = await this.projectApiKeyRepository.findByHash(keyHash);
+
+        console.log("TELEMETRY AUTH RESULT:", {
+            found: Boolean(apiKey),
+            id: apiKey?.id ?? null,
+            projectId: apiKey?.projectId ?? null,
+            revokedAt: apiKey?.revokedAt ?? null,
+        });
 
         if (!apiKey) {
             return null;
@@ -207,7 +220,7 @@ export class ProjectApiKeyService {
         return apiKey;
     };
 
-    async markAsUsed(apiKeyId: string){
+    async markAsUsed(apiKeyId: string) {
         return await this.projectApiKeyRepository.updateLastUsedAt(apiKeyId);
     };
 };

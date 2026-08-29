@@ -11,8 +11,10 @@ processors:
   batch:
 
 exporters:
-  debug:
-    verbosity: detailed
+  otlphttp/uptrace:
+    endpoint: http://host.docker.internal:4000
+    headers:
+      x-uptrace-api-key: "ut_987fe9ccb07f504afe38ea877e7601b426df9a68c549c03a5509b2c2208db95d"
 
 service:
   pipelines:
@@ -24,4 +26,4 @@ service:
         - batch
 
       exporters:
-        - debug
+        - otlphttp/uptrace

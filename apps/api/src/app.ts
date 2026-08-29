@@ -36,18 +36,29 @@ app.use(
     }),
 );
 
+app.use(
+    "/v1/traces",
+    express.raw({
+        type: [
+            "application/x-protobuf",
+            "application/json",
+        ],
+        limit: "10mb",
+    }),
+);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 
+app.use(createTelemetryRouter());
 app.use("/auth", createAuthRouter());
 app.use("/organizations", createOrganizationRouter());
 app.use("/", createProjectRouter());
 app.use("/", createHttpEndpointRouter());
 app.use("/", createHttpCheckResultRouter());
 app.use("/", createProjectApiKeyRouter());
-app.use(createTelemetryRouter());
 
 app.get("/health", async (_req, res, next) => {
     try {

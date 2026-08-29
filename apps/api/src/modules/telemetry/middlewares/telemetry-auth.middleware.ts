@@ -15,9 +15,21 @@ export function createTelemetryAuthMiddleware(
         _res: Response,
         next: NextFunction,
     ) {
+        console.log("=== TELEMETRY MIDDLEWARE HIT ===");
         try {
-            const apiKey =
-                req.headers["x-uptrace-api-key"];
+            const apiKey = req.headers["x-uptrace-api-key"];
+            console.log("RAW API KEY:", JSON.stringify(apiKey));
+            console.log("TELEMETRY AUTH HEADER:", {
+                type: typeof apiKey,
+                prefix:
+                    typeof apiKey === "string"
+                        ? apiKey.slice(0, 11)
+                        : null,
+                length:
+                    typeof apiKey === "string"
+                        ? apiKey.length
+                        : null,
+            });
 
             if (
                 typeof apiKey !== "string" ||
@@ -37,6 +49,13 @@ export function createTelemetryAuthMiddleware(
                     apiKey,
                 );
 
+            console.log("=== TELEMETRY AUTH RESULT ===", {
+                found: !!projectApiKey,
+                id: projectApiKey?.id,
+                projectId: projectApiKey?.projectId,
+                revokedAt: projectApiKey?.revokedAt,
+            });
+
             if (!projectApiKey) {
                 return next(
                     new AppError(
@@ -47,6 +66,11 @@ export function createTelemetryAuthMiddleware(
                 );
             }
 
+            console.log("=== TELEMETRY AUTH SUCCESS ===", {
+                projectId: projectApiKey.projectId,
+                apiKeyId: projectApiKey.id,
+            });
+
             req.telemetry = {
                 projectId: projectApiKey.projectId,
                 apiKeyId: projectApiKey.id,
@@ -55,6 +79,8 @@ export function createTelemetryAuthMiddleware(
             await projectApiKeyService.markAsUsed(
                 projectApiKey.id,
             );
+
+            console.log("=== TELEMETRY CALLING NEXT ===");
 
             return next();
         } catch (error) {

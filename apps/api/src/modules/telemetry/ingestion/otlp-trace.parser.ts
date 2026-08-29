@@ -1,4 +1,5 @@
 import { AppError } from "../../../core/errors/app-error.js";
+import { decodeOtlpProtobuf } from "./otlp-protobuf.decoder.js";
 
 export type OtlpAttributeValue = {
     stringValue?: string;
@@ -66,23 +67,32 @@ function parseHexId(
         return undefined;
     }
 
-    if (typeof value !== "string") {
-        throw new AppError(
-            `Invalid OTLP ${field}`,
-            400,
-            "INVALID_OTLP_PAYLOAD",
-        );
+    // OTLP protobuf decoded bytes
+    if (value instanceof Uint8Array) {
+        return value;
     }
 
-    if (!/^[0-9a-fA-F]+$/.test(value) || value.length % 2 !== 0) {
-        throw new AppError(
-            `Invalid OTLP ${field}`,
-            400,
-            "INVALID_OTLP_PAYLOAD",
-        );
+    // JSON OTLP hex string
+    if (typeof value === "string") {
+        if (
+            !/^[0-9a-fA-F]+$/.test(value) ||
+            value.length % 2 !== 0
+        ) {
+            throw new AppError(
+                `Invalid OTLP ${field}`,
+                400,
+                "INVALID_OTLP_PAYLOAD",
+            );
+        }
+
+        return Uint8Array.from(Buffer.from(value, "hex"));
     }
 
-    return Uint8Array.from(Buffer.from(value, "hex"));
+    throw new AppError(
+        `Invalid OTLP ${field}`,
+        400,
+        "INVALID_OTLP_PAYLOAD",
+    );
 }
 
 function parseUnixNano(
@@ -384,6 +394,10 @@ function parseResourceSpans(
 export function parseOtlpTraceRequest(
     payload: unknown,
 ): OtlpTraceRequest {
+    if (Buffer.isBuffer(payload)) {
+        payload = decodeOtlpProtobuf(payload);
+    }
+
     if (!isRecord(payload)) {
         throw new AppError(
             "Invalid OTLP trace payload",
