@@ -1,50 +1,94 @@
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@import "tailwindcss";
+
+@keyframes fade-in-up {
+    from {
+        opacity: 0;
+        transform: translateY(18px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+@keyframes dashboard-enter {
+    from {
+        opacity: 0;
+        transform: translateY(35px) rotateX(10deg) scale(0.97);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) rotateX(5deg) scale(1);
+    }
 }
 
-html,
-body {
-  max-width: 100vw;
-  overflow-x: hidden;
+@keyframes float {
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-10px);
+    }
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
+@keyframes float-slow {
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-7px);
+    }
 }
 
-* {
-  box-sizing: border-box;
-  padding: 0;
-  margin: 0;
+.animate-fade-in-up {
+    animation: fade-in-up 0.7s ease-out both;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+.animate-fade-in-up-delay-1 {
+    animation: fade-in-up 0.7s 0.08s ease-out both;
 }
 
-.imgDark {
-  display: none;
+.animate-fade-in-up-delay-2 {
+    animation: fade-in-up 0.7s 0.16s ease-out both;
 }
 
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
-  }
-
-  .imgLight {
-    display: none;
-  }
-  .imgDark {
-    display: unset;
-  }
+.animate-fade-in-up-delay-3 {
+    animation: fade-in-up 0.7s 0.24s ease-out both;
 }
+
+.animate-fade-in-up-delay-4 {
+    animation: fade-in-up 0.7s 0.32s ease-out both;
+}
+
+.animate-dashboard {
+    animation: dashboard-enter 1s 0.15s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-float {
+    animation: float 5s ease-in-out infinite;
+}
+
+.animate-float-slow {
+    animation: float-slow 6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .animate-fade-in-up,
+    .animate-fade-in-up-delay-1,
+    .animate-fade-in-up-delay-2,
+    .animate-fade-in-up-delay-3,
+    .animate-fade-in-up-delay-4,
+    .animate-dashboard,
+    .animate-float,
+    .animate-float-slow {
+        animation: none;
+    }
+}
+
+
