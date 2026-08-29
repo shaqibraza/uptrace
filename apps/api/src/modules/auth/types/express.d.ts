@@ -4,6 +4,11 @@ declare global {
             user?: {
                 id: string;
             };
+
+            telemetry?: {
+                projectId: string;
+                apiKeyId: string;
+            };
         }
     }
 }

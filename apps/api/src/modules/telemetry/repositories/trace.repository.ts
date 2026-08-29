@@ -3,7 +3,6 @@ import { and, desc, eq } from "drizzle-orm";
 import { traces } from "@uptrace/db";
 
 import { db } from "../../../db.js";
-import { trace } from "console";
 
 
 export class TraceRepository {
