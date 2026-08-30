@@ -1,11 +1,11 @@
 import Link from "next/link";
 import {
-    CheckCircle2,
     Mail,
 } from "lucide-react";
 
 import { Navbar } from "../components/landing/Navbar";
 import { Footer } from "../components/landing/Footer";
+import { VerifyEmailContent } from "./VerifyEmailContent";
 
 export default function VerifyEmailPage() {
     return (
@@ -235,75 +235,8 @@ export default function VerifyEmailPage() {
                             />
 
                             <div className="relative">
-                                {/* Icon */}
-                                <div
-                                    className="
-                                        mx-auto mb-6
-                                        flex h-16 w-16
-                                        items-center justify-center
-                                        rounded-2xl
-                                        border border-zinc-800
-                                        bg-zinc-900
-                                        shadow-[0_0_40px_rgba(34,211,238,0.04)]
-                                    "
-                                >
-                                    <Mail className="h-7 w-7 text-zinc-300" />
-                                </div>
+                                <VerifyEmailContent />
 
-                                <h1
-                                    className="
-                                        text-2xl
-                                        font-semibold
-                                        tracking-tight
-                                        text-zinc-100
-                                    "
-                                >
-                                    Check your email
-                                </h1>
-
-                                <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-zinc-500">
-                                    We&apos;ve sent a verification link to
-                                    your email address. Click the link to
-                                    verify your account.
-                                </p>
-
-                                {/* Email indicator */}
-                                <div
-                                    className="
-                                        mx-auto mt-6
-                                        flex max-w-sm
-                                        items-center justify-center
-                                        gap-2
-                                        rounded-xl
-                                        border border-zinc-800
-                                        bg-black/60
-                                        px-4 py-3
-                                        text-sm text-zinc-400
-                                    "
-                                >
-                                    <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-
-                                    Verification email sent
-                                </div>
-
-                                {/* Resend */}
-                                <button
-                                    type="button"
-                                    className="
-                                        mt-7
-                                        text-sm
-                                        font-medium
-                                        text-zinc-400
-                                        underline-offset-4
-                                        transition-colors
-                                        hover:text-zinc-100
-                                        hover:underline
-                                    "
-                                >
-                                    Didn&apos;t receive it? Resend email
-                                </button>
-
-                                {/* Login */}
                                 <div className="mt-8 border-t border-zinc-900 pt-6">
                                     <p className="text-sm text-zinc-600">
                                         Already verified?

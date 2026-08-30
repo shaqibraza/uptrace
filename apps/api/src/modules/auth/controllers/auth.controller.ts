@@ -52,6 +52,26 @@ export class AuthController {
         };
     };
 
+    resendVerificationEmail = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const { email } = req.body;
+            if (typeof email !== "string" || !email.trim()) {
+                throw new Error("Email is required");
+            };
+
+            const result = await this.authService.resendVerificationEmail(email);
+
+            return res.status(200).json({
+                success: true,
+                data: {
+                    message: result.message
+                }
+            });
+        } catch (error) {
+            next(error);
+        };
+    };
+
     login = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const input = loginSchema.parse(req.body);
@@ -61,7 +81,7 @@ export class AuthController {
                 httpOnly: true,
                 secure: env.NODE_ENV === "production",
                 sameSite: "lax",
-                path: "/auth/refresh",
+                path: "/auth",
             });
 
             res.cookie("refreshToken", result.refreshToken, {

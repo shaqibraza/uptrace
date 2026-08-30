@@ -75,6 +75,45 @@ export class AuthService {
         return user;
     };
 
+    async resendVerificationEmail(email: string) {
+        const normalizedEmail = email.trim().toLowerCase();
+
+        const user = await this.userRepository.findByEmail(normalizedEmail);
+
+        const genericResponse = {
+            message: "If an unverified account exists, a verification email has been sent"
+        };
+
+        if (!user) {
+            return genericResponse;
+        };
+
+        if (user.emailVerifiedAt) {
+            return genericResponse;
+        };
+
+        await this.emailVerificationRepository.invalidateUnusedTokens(user.id);
+
+        const { rawToken } = await this.emailVerificationRepository.create(user.id);
+
+        const verificationUrl = `${env.WEB_URL}/verify-email?token=${encodeURIComponent(
+            rawToken,
+        )}`;
+
+        const emailContent = buildVerificationEmail({verificationUrl});
+
+        await this.emailService.send({
+            to: user.email,
+            subject: emailContent.subject,
+            html: emailContent.html,
+            text: emailContent.text,
+        });
+
+        return {
+            message: "Verification email sent"
+        };
+    };
+
     async login(input: LoginInput) {
         const email = input.email.toLowerCase();
 

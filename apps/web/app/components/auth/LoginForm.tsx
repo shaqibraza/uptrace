@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useForm } from "react-hook-form";
 import {
     ArrowRight,
     Eye,
@@ -10,70 +12,71 @@ import {
     Mail,
 } from "lucide-react";
 
-export function LoginForm() {
-    const [showPassword, setShowPassword] = useState(false);
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState("");
+import {
+    useAuthStore,
+} from "../../../stores/auth.store";
 
-    const [form, setForm] = useState({
-        email: "",
-        password: "",
+import type {
+    LoginPayload,
+} from "../../../lib/api/auth.api";
+
+export function LoginForm() {
+    const router = useRouter();
+
+    const [showPassword, setShowPassword] =
+        useState(false);
+
+    const login = useAuthStore(
+        (state) => state.login,
+    );
+
+    const isLoggingIn = useAuthStore(
+        (state) => state.isLoggingIn,
+    );
+
+    const error = useAuthStore(
+        (state) => state.error,
+    );
+
+    const clearError = useAuthStore(
+        (state) => state.clearError,
+    );
+
+    const {
+        register,
+        handleSubmit,
+        formState: {
+            errors,
+        },
+    } = useForm<LoginPayload>({
+        defaultValues: {
+            email: "",
+            password: "",
+        },
     });
 
-    const updateField = (
-        field: keyof typeof form,
-        value: string,
+    const onSubmit = async (
+        data: LoginPayload,
     ) => {
-        setForm((current) => ({
-            ...current,
-            [field]: value,
-        }));
+        clearError();
 
-        if (error) {
-            setError("");
-        }
-    };
+        const success = await login({
+            email: data.email
+                .trim()
+                .toLowerCase(),
+            password: data.password,
+        });
 
-    const handleSubmit = async (
-        event: React.FormEvent<HTMLFormElement>,
-    ) => {
-        event.preventDefault();
-
-        try {
-            setIsLoading(true);
-            setError("");
-
-            /*
-             * Backend authentication will be connected here.
-             *
-             * Expected payload:
-             * {
-             *   email,
-             *   password
-             * }
-             */
-
-            await new Promise((resolve) =>
-                setTimeout(resolve, 700),
-            );
-
-            console.log("Login payload:", {
-                email: form.email,
-                password: form.password,
-            });
-        } catch {
-            setError(
-                "Unable to sign in. Please try again.",
-            );
-        } finally {
-            setIsLoading(false);
+        if (success) {
+            router.push("/dashboard");
         }
     };
 
     return (
         <form
-            onSubmit={handleSubmit}
+            onSubmit={handleSubmit(onSubmit)}
             className="space-y-5"
+            noValidate
         >
             {/* Email */}
             <div>
@@ -97,18 +100,20 @@ export function LoginForm() {
 
                     <input
                         id="email"
-                        name="email"
                         type="email"
                         autoComplete="email"
-                        required
-                        value={form.email}
-                        onChange={(event) =>
-                            updateField(
-                                "email",
-                                event.target.value,
-                            )
-                        }
                         placeholder="you@example.com"
+                        disabled={isLoggingIn}
+                        {...register("email", {
+                            required:
+                                "Email is required",
+                            pattern: {
+                                value:
+                                    /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                                message:
+                                    "Please enter a valid email address",
+                            },
+                        })}
                         className="
                             h-11 w-full
                             rounded-xl
@@ -125,6 +130,15 @@ export function LoginForm() {
                         "
                     />
                 </div>
+
+                {errors.email && (
+                    <p
+                        role="alert"
+                        className="mt-2 text-xs text-red-400"
+                    >
+                        {errors.email.message}
+                    </p>
+                )}
             </div>
 
             {/* Password */}
@@ -163,22 +177,23 @@ export function LoginForm() {
 
                     <input
                         id="password"
-                        name="password"
                         type={
                             showPassword
                                 ? "text"
                                 : "password"
                         }
                         autoComplete="current-password"
-                        required
-                        value={form.password}
-                        onChange={(event) =>
-                            updateField(
-                                "password",
-                                event.target.value,
-                            )
-                        }
                         placeholder="Enter your password"
+                        disabled={isLoggingIn}
+                        {...register("password", {
+                            required:
+                                "Password is required",
+                            minLength: {
+                                value: 8,
+                                message:
+                                    "Password must be at least 8 characters",
+                            },
+                        })}
                         className="
                             h-11 w-full
                             rounded-xl
@@ -199,9 +214,11 @@ export function LoginForm() {
                         type="button"
                         onClick={() =>
                             setShowPassword(
-                                (current) => !current,
+                                (current) =>
+                                    !current,
                             )
                         }
+                        disabled={isLoggingIn}
                         aria-label={
                             showPassword
                                 ? "Hide password"
@@ -214,6 +231,7 @@ export function LoginForm() {
                             text-zinc-600
                             transition-colors
                             hover:text-zinc-300
+                            disabled:cursor-not-allowed
                         "
                     >
                         {showPassword ? (
@@ -223,9 +241,18 @@ export function LoginForm() {
                         )}
                     </button>
                 </div>
+
+                {errors.password && (
+                    <p
+                        role="alert"
+                        className="mt-2 text-xs text-red-400"
+                    >
+                        {errors.password.message}
+                    </p>
+                )}
             </div>
 
-            {/* Error */}
+            {/* API Error */}
             {error && (
                 <div
                     role="alert"
@@ -244,7 +271,7 @@ export function LoginForm() {
             {/* Submit */}
             <button
                 type="submit"
-                disabled={isLoading}
+                disabled={isLoggingIn}
                 className="
                     group
                     flex h-11 w-full
@@ -261,7 +288,7 @@ export function LoginForm() {
                     disabled:opacity-50
                 "
             >
-                {isLoading ? (
+                {isLoggingIn ? (
                     <>
                         <span
                             className="

@@ -33,6 +33,8 @@ export function createAuthRouter() {
 
     router.get("/verify-email", verificationRateLimiter, authController.verifyEmail);
 
+    router.post("/resend-verification", verificationRateLimiter, authController.resendVerificationEmail);
+
     router.post("/login", loginRateLimiter, authController.login);
 
     router.post("/refresh", authController.refresh);

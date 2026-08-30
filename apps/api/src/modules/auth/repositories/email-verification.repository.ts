@@ -49,6 +49,18 @@ export class EmailVerificationRepository {
         return token;
     };
 
+    async invalidateUnusedTokens(userId: string){
+        await db
+            .update(emailVerificationTokens)
+            .set({
+                usedAt: new Date(),
+            })
+            .where(and(
+                eq(emailVerificationTokens.userId, userId),
+                isNull(emailVerificationTokens.usedAt)
+            ));
+    }
+
     async markUsed(id: string){
         await db
             .update(emailVerificationTokens)
