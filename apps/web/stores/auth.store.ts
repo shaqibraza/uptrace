@@ -13,6 +13,10 @@ import {
     type LoginUser,
 } from "../lib/api/auth.api";
 
+import {
+    setAccessToken,
+    clearAccessToken,
+} from "../lib/token";
 
 type AuthStatus =
     | "unknown"
@@ -21,25 +25,17 @@ type AuthStatus =
 
 type AuthState = {
     status: AuthStatus;
-
     user: LoginUser | null;
-
     accessToken: string | null;
 
     isInitializing: boolean;
-
     isRegistering: boolean;
-
     isVerifyingEmail: boolean;
-
     isResendingVerificationEmail: boolean;
-
     isLoggingIn: boolean;
-
     isLoggingOut: boolean;
 
     error: string | null;
-
     emailVerificationRequired: boolean;
 
     initializeAuth: () => Promise<void>;
@@ -67,19 +63,24 @@ type AuthState = {
     reset: () => void;
 };
 
-
 export const useAuthStore = create<AuthState>(
     (set) => ({
         status: "unknown",
 
         user: null,
+
         accessToken: null,
 
         isInitializing: true,
+
         isRegistering: false,
+
         isVerifyingEmail: false,
+
         isResendingVerificationEmail: false,
+
         isLoggingIn: false,
+
         isLoggingOut: false,
 
         error: null,
@@ -105,13 +106,15 @@ export const useAuthStore = create<AuthState>(
 
                 return true;
             } catch (error) {
-                const message = getApiErrorMessage(error);
+                const message =
+                    getApiErrorMessage(error);
 
                 set({
                     isRegistering: false,
                     error: message,
                     emailVerificationRequired: false,
                 });
+
                 return false;
             }
         },
@@ -119,8 +122,9 @@ export const useAuthStore = create<AuthState>(
         verifyEmail: async (token) => {
             set({
                 isVerifyingEmail: true,
-                error: null
+                error: null,
             });
+
             try {
                 await verifyEmailApi(token);
 
@@ -131,7 +135,8 @@ export const useAuthStore = create<AuthState>(
 
                 return true;
             } catch (error) {
-                const message = getApiErrorMessage(error);
+                const message =
+                    getApiErrorMessage(error);
 
                 set({
                     isVerifyingEmail: false,
@@ -142,7 +147,9 @@ export const useAuthStore = create<AuthState>(
             }
         },
 
-        resendVerificationEmail: async (email: string) => {
+        resendVerificationEmail: async (
+            email,
+        ) => {
             set({
                 isResendingVerificationEmail: true,
                 error: null,
@@ -150,7 +157,9 @@ export const useAuthStore = create<AuthState>(
 
             try {
                 await resendVerificationEmailApi({
-                    email: email.trim().toLowerCase(),
+                    email: email
+                        .trim()
+                        .toLowerCase(),
                 });
 
                 set({
@@ -160,7 +169,8 @@ export const useAuthStore = create<AuthState>(
 
                 return true;
             } catch (error) {
-                const message = getApiErrorMessage(error);
+                const message =
+                    getApiErrorMessage(error);
 
                 set({
                     isResendingVerificationEmail: false,
@@ -178,26 +188,46 @@ export const useAuthStore = create<AuthState>(
             });
 
             try {
-                const response = await loginApi(payload);
+                const response =
+                    await loginApi(payload);
+
+                const accessToken =
+                    response.data.accessToken;
+
+                /*
+                 * Keep the token available to the Axios
+                 * interceptor for authenticated requests.
+                 */
+                setAccessToken(accessToken);
 
                 set({
                     status: "authenticated",
+
                     user: response.data.user,
-                    accessToken: response.data.accessToken,
+
+                    accessToken,
+
                     isLoggingIn: false,
+
                     error: null,
                 });
 
                 return true;
             } catch (error) {
+                clearAccessToken();
+
                 const message =
                     getApiErrorMessage(error);
 
                 set({
                     status: "unauthenticated",
+
                     user: null,
+
                     accessToken: null,
+
                     isLoggingIn: false,
+
                     error: message,
                 });
 
@@ -218,28 +248,50 @@ export const useAuthStore = create<AuthState>(
             });
 
             try {
+                /*
+                 * Refresh uses the refresh-token cookie.
+                 * Backend returns a fresh access token.
+                 */
                 const refreshResponse =
                     await refreshApi();
 
                 const accessToken =
                     refreshResponse.data.accessToken;
 
+                /*
+                 * Make the fresh token available to
+                 * authenticated API requests.
+                 */
+                setAccessToken(accessToken);
+
                 const meResponse =
-                    await getCurrentUserApi(accessToken);
+                    await getCurrentUserApi(
+                        accessToken,
+                    );
 
                 set({
                     status: "authenticated",
+
                     user: meResponse.data.user,
+
                     accessToken,
+
                     isInitializing: false,
+
                     error: null,
                 });
             } catch {
+                clearAccessToken();
+
                 set({
                     status: "unauthenticated",
+
                     user: null,
+
                     accessToken: null,
+
                     isInitializing: false,
+
                     error: null,
                 });
             }
@@ -254,11 +306,21 @@ export const useAuthStore = create<AuthState>(
             try {
                 await logoutApi();
 
+                /*
+                 * Remove the token from the shared
+                 * token holder after successful logout.
+                 */
+                clearAccessToken();
+
                 set({
                     status: "unauthenticated",
+
                     user: null,
+
                     accessToken: null,
+
                     isLoggingOut: false,
+
                     error: null,
                 });
             } catch (error) {
@@ -267,6 +329,7 @@ export const useAuthStore = create<AuthState>(
 
                 set({
                     isLoggingOut: false,
+
                     error: message,
                 });
 
@@ -275,23 +338,34 @@ export const useAuthStore = create<AuthState>(
         },
 
         reset: () => {
+            clearAccessToken();
+
             set({
                 status: "unauthenticated",
+
                 user: null,
+
                 accessToken: null,
+
                 isInitializing: false,
+
                 isRegistering: false,
+
                 isVerifyingEmail: false,
+
                 isResendingVerificationEmail: false,
+
                 isLoggingIn: false,
+
                 isLoggingOut: false,
+
                 error: null,
+
                 emailVerificationRequired: false,
             });
         },
     }),
 );
-
 
 function getApiErrorMessage(
     error: unknown,

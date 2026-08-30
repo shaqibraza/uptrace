@@ -13,21 +13,31 @@ import {
     Settings,
     User,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 import { CommandPalette } from "./CommandPalette";
 import { MobileSidebar } from "./MobileSidebar";
+import { OrganizationSwitcher } from "./OrganizationSwitcher";
+import { useAuthStore } from "../../../stores/auth.store";
+import { useToast } from "../../providers/ToastProvider";
 
 export function Topbar() {
+    const router = useRouter();
+
+    const user = useAuthStore((state) => state.user);
+    const logout = useAuthStore((state) => state.logout);
+    const isLoggingOut = useAuthStore(
+        (state) => state.isLoggingOut,
+    );
+
+    const { success, error: showError } = useToast();
+
     const [commandOpen, setCommandOpen] = useState(false);
     const [notificationsOpen, setNotificationsOpen] =
         useState(false);
     const [profileOpen, setProfileOpen] = useState(false);
     const [mobileSidebarOpen, setMobileSidebarOpen] =
         useState(false);
-
-    /* ================================================================ */
-    /* Keyboard Shortcuts                                               */
-    /* ================================================================ */
 
     useEffect(() => {
         const handleShortcut = (event: KeyboardEvent) => {
@@ -63,10 +73,6 @@ export function Topbar() {
         };
     }, [commandOpen]);
 
-    /* ================================================================ */
-    /* Menu Handlers                                                    */
-    /* ================================================================ */
-
     const openCommandPalette = () => {
         setNotificationsOpen(false);
         setProfileOpen(false);
@@ -91,12 +97,43 @@ export function Topbar() {
         );
     };
 
+    const handleLogout = async () => {
+        if (isLoggingOut) {
+            return;
+        }
+
+        try {
+            await logout();
+
+            setProfileOpen(false);
+
+            success(
+                "Signed out",
+                "You have been logged out successfully.",
+            );
+
+            router.replace("/login");
+        } catch (error) {
+            showError(
+                "Logout failed",
+                error instanceof Error
+                    ? error.message
+                    : "Unable to sign out. Please try again.",
+            );
+        }
+    };
+
+    const initials =
+        user?.name
+            ?.trim()
+            .split(/\s+/)
+            .map((part) => part[0])
+            .join("")
+            .slice(0, 2)
+            .toUpperCase() ?? "";
+
     return (
         <>
-            {/* ======================================================== */}
-            {/* Mobile Sidebar                                          */}
-            {/* ======================================================== */}
-
             <MobileSidebar
                 open={mobileSidebarOpen}
                 onClose={() =>
@@ -104,20 +141,12 @@ export function Topbar() {
                 }
             />
 
-            {/* ======================================================== */}
-            {/* Command Palette                                          */}
-            {/* ======================================================== */}
-
             <CommandPalette
                 open={commandOpen}
                 onClose={() =>
                     setCommandOpen(false)
                 }
             />
-
-            {/* ======================================================== */}
-            {/* Topbar                                                    */}
-            {/* ======================================================== */}
 
             <header
                 className="
@@ -139,10 +168,7 @@ export function Topbar() {
                         lg:px-8
                     "
                 >
-                    {/* ================================================== */}
-                    {/* Left Side                                            */}
-                    {/* ================================================== */}
-
+                    {/* Left Side */}
                     <div
                         className="
                             flex min-w-0
@@ -155,9 +181,7 @@ export function Topbar() {
                         <button
                             type="button"
                             onClick={() =>
-                                setMobileSidebarOpen(
-                                    true,
-                                )
+                                setMobileSidebarOpen(true)
                             }
                             aria-label="Open navigation"
                             className="
@@ -176,97 +200,16 @@ export function Topbar() {
                             <Menu className="h-5 w-5" />
                         </button>
 
-                        {/* Project Selector */}
-                        <button
-                            type="button"
-                            className="
-                                hidden
-                                items-center gap-2
-                                rounded-lg
-                                border border-zinc-900
-                                bg-zinc-950
-                                px-3 py-2
-                                transition-colors
-                                hover:border-zinc-800
-                                sm:flex
-                            "
-                        >
-                            <span
-                                className="
-                                    flex h-5 w-5
-                                    items-center
-                                    justify-center
-                                    rounded
-                                    bg-zinc-800
-                                    text-[9px]
-                                    font-semibold
-                                    text-zinc-400
-                                "
-                            >
-                                M
-                            </span>
-
-                            <span
-                                className="
-                                    max-w-[140px]
-                                    truncate
-                                    text-xs
-                                    font-medium
-                                    text-zinc-400
-                                "
-                            >
-                                My Project
-                            </span>
-
-                            <ChevronDown
-                                className="
-                                    h-3 w-3
-                                    text-zinc-700
-                                "
-                            />
-                        </button>
-
-                        {/* Environment */}
-                        <div
-                            className="
-                                hidden
-                                items-center gap-1.5
-                                md:flex
-                            "
-                        >
-                            <span
-                                className="
-                                    h-1.5 w-1.5
-                                    rounded-full
-                                    bg-emerald-500
-                                "
-                            />
-
-                            <span
-                                className="
-                                    text-[10px]
-                                    text-zinc-700
-                                "
-                            >
-                                production
-                            </span>
-                        </div>
+                        {/* Organization + Environment */}
+                        <OrganizationSwitcher />
                     </div>
 
-                    {/* ================================================== */}
-                    {/* Right Side                                           */}
-                    {/* ================================================== */}
-
+                    {/* Right Side */}
                     <div className="flex items-center gap-1">
-                        {/* ================================================= */}
-                        {/* Mobile Search                                      */}
-                        {/* ================================================= */}
-
+                        {/* Mobile Search */}
                         <button
                             type="button"
-                            onClick={
-                                openCommandPalette
-                            }
+                            onClick={openCommandPalette}
                             aria-label="Search"
                             className="
                                 flex h-9 w-9
@@ -283,15 +226,10 @@ export function Topbar() {
                             <Search className="h-4 w-4" />
                         </button>
 
-                        {/* ================================================= */}
-                        {/* Desktop Search                                     */}
-                        {/* ================================================= */}
-
+                        {/* Desktop Search */}
                         <button
                             type="button"
-                            onClick={
-                                openCommandPalette
-                            }
+                            onClick={openCommandPalette}
                             aria-label="Open search"
                             className="
                                 hidden h-9 w-52
@@ -351,10 +289,7 @@ export function Topbar() {
                             "
                         />
 
-                        {/* ================================================= */}
-                        {/* Notifications                                      */}
-                        {/* ================================================= */}
-
+                        {/* Notifications */}
                         <div className="relative">
                             <button
                                 type="button"
@@ -379,7 +314,6 @@ export function Topbar() {
                             >
                                 <Bell className="h-4 w-4" />
 
-                                {/* Notification indicator */}
                                 <span
                                     className="
                                         absolute
@@ -406,7 +340,6 @@ export function Topbar() {
                                         shadow-black/50
                                     "
                                 >
-                                    {/* Header */}
                                     <div
                                         className="
                                             flex
@@ -418,35 +351,18 @@ export function Topbar() {
                                         "
                                     >
                                         <div>
-                                            <p
-                                                className="
-                                                    text-xs
-                                                    font-medium
-                                                    text-zinc-300
-                                                "
-                                            >
+                                            <p className="text-xs font-medium text-zinc-300">
                                                 Notifications
                                             </p>
 
-                                            <p
-                                                className="
-                                                    mt-0.5
-                                                    text-[9px]
-                                                    text-zinc-800
-                                                "
-                                            >
+                                            <p className="mt-0.5 text-[9px] text-zinc-800">
                                                 Recent activity
                                             </p>
                                         </div>
 
                                         <button
                                             type="button"
-                                            className="
-                                                text-[9px]
-                                                text-zinc-700
-                                                transition-colors
-                                                hover:text-zinc-400
-                                            "
+                                            className="text-[9px] text-zinc-700 hover:text-zinc-400"
                                         >
                                             Mark all read
                                         </button>
@@ -471,36 +387,19 @@ export function Topbar() {
                                         time="1h ago"
                                     />
 
-                                    {/* Footer */}
-                                    <div
-                                        className="
-                                            border-t
-                                            border-zinc-900
-                                            p-3
-                                            text-center
-                                        "
-                                    >
+                                    <div className="border-t border-zinc-900 p-3 text-center">
                                         <button
                                             type="button"
-                                            className="
-                                                text-[10px]
-                                                text-zinc-600
-                                                transition-colors
-                                                hover:text-zinc-300
-                                            "
+                                            className="text-[10px] text-zinc-600 hover:text-zinc-300"
                                         >
-                                            View all
-                                            notifications
+                                            View all notifications
                                         </button>
                                     </div>
                                 </div>
                             )}
                         </div>
 
-                        {/* ================================================= */}
-                        {/* Profile                                            */}
-                        {/* ================================================= */}
-
+                        {/* Profile */}
                         <div className="relative ml-1">
                             <button
                                 type="button"
@@ -528,7 +427,7 @@ export function Topbar() {
                                         text-zinc-400
                                     "
                                 >
-                                    MS
+                                    {initials}
                                 </div>
 
                                 <ChevronDown
@@ -563,25 +462,12 @@ export function Topbar() {
                                             px-4 py-4
                                         "
                                     >
-                                        <p
-                                            className="
-                                                text-xs
-                                                font-medium
-                                                text-zinc-300
-                                            "
-                                        >
-                                            Mohd Shaqib Raza
+                                        <p className="truncate text-xs font-medium text-zinc-300">
+                                            {user?.name}
                                         </p>
 
-                                        <p
-                                            className="
-                                                mt-1
-                                                truncate
-                                                text-[10px]
-                                                text-zinc-700
-                                            "
-                                        >
-                                            shaqib@example.com
+                                        <p className="mt-1 truncate text-[10px] text-zinc-700">
+                                            {user?.email}
                                         </p>
                                     </div>
 
@@ -590,7 +476,7 @@ export function Topbar() {
                                         <ProfileItem
                                             icon={User}
                                             label="Profile"
-                                            href="/dashboard/settings"
+                                            href="/profile"
                                             onClick={() =>
                                                 setProfileOpen(
                                                     false,
@@ -631,6 +517,12 @@ export function Topbar() {
                                     >
                                         <button
                                             type="button"
+                                            onClick={
+                                                handleLogout
+                                            }
+                                            disabled={
+                                                isLoggingOut
+                                            }
                                             className="
                                                 flex w-full
                                                 items-center
@@ -643,11 +535,15 @@ export function Topbar() {
                                                 transition-colors
                                                 hover:bg-red-500/5
                                                 hover:text-red-400
+                                                disabled:cursor-not-allowed
+                                                disabled:opacity-50
                                             "
                                         >
                                             <LogOut className="h-3.5 w-3.5" />
 
-                                            Sign out
+                                            {isLoggingOut
+                                                ? "Signing out..."
+                                                : "Sign out"}
                                         </button>
                                     </div>
                                 </div>
@@ -660,9 +556,9 @@ export function Topbar() {
     );
 }
 
-/* ========================================================================== */
-/* Notification Item                                                          */
-/* ========================================================================== */
+/* ==========================================================================
+   Notification Item
+   ========================================================================== */
 
 function NotificationItem({
     title,
@@ -727,9 +623,9 @@ function NotificationItem({
     );
 }
 
-/* ========================================================================== */
-/* Profile Item                                                               */
-/* ========================================================================== */
+/* ==========================================================================
+   Profile Item
+   ========================================================================== */
 
 function ProfileItem({
     icon: Icon,
