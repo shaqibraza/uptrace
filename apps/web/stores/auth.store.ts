@@ -269,6 +269,8 @@ export const useAuthStore = create<AuthState>(
                     isLoggingOut: false,
                     error: message,
                 });
+
+                throw error;
             }
         },
 

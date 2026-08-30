@@ -1,5 +1,6 @@
 "use client";
 
+import { useToast } from "../../providers/ToastProvider";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -27,6 +28,8 @@ const navigation = [
 ];
 
 export function Navbar() {
+    const { success: showSuccess, error: showError } = useToast();
+
     const [isMenuOpen, setIsMenuOpen] = useState(false);
 
     const user = useAuthStore((state) => state.user);
@@ -349,10 +352,26 @@ export function Navbar() {
                                                         isLoggingOut
                                                     }
                                                     onClick={async () => {
-                                                        await logout();
-                                                        setIsProfileOpen(
-                                                            false,
-                                                        );
+                                                        try {
+                                                            await logout();
+
+                                                            showSuccess(
+                                                                "Signed out",
+                                                                "You have been logged out successfully.",
+                                                            );
+                                                        } catch (error) {
+                                                            const message =
+                                                                error instanceof Error
+                                                                    ? error.message
+                                                                    : "Unable to sign out. Please try again.";
+
+                                                            showError(
+                                                                "Logout failed",
+                                                                message,
+                                                            );
+                                                        } finally {
+                                                            setIsProfileOpen(false);
+                                                        }
                                                     }}
                                                     className="
                                                         flex w-full

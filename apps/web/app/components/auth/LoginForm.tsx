@@ -1,5 +1,6 @@
 "use client";
 
+import { useToast } from "../../providers/ToastProvider";
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -12,16 +13,17 @@ import {
     Mail,
 } from "lucide-react";
 
-import {
-    useAuthStore,
-} from "../../../stores/auth.store";
+import { useAuthStore } from "../../../stores/auth.store";
 
-import type {
-    LoginPayload,
-} from "../../../lib/api/auth.api";
+import type { LoginPayload } from "../../../lib/api/auth.api";
 
 export function LoginForm() {
     const router = useRouter();
+
+    const {
+        success: showSuccess,
+        error: showError,
+    } = useToast();
 
     const [showPassword, setShowPassword] =
         useState(false);
@@ -60,16 +62,35 @@ export function LoginForm() {
     ) => {
         clearError();
 
-        const success = await login({
+        const loginSuccess = await login({
             email: data.email
                 .trim()
                 .toLowerCase(),
             password: data.password,
         });
 
-        if (success) {
-            router.push("/dashboard");
+        if (!loginSuccess) {
+            const currentError =
+                useAuthStore.getState().error;
+
+            showError(
+                "Sign in failed",
+                currentError ??
+                    "Unable to sign in. Please try again.",
+            );
+
+            return;
         }
+
+        showSuccess(
+            "Welcome back",
+            "You have been signed in successfully.",
+        );
+
+        // Give the toast time to render before navigation.
+        setTimeout(() => {
+            router.push("/dashboard");
+        }, 1000);
     };
 
     return (
@@ -107,6 +128,7 @@ export function LoginForm() {
                         {...register("email", {
                             required:
                                 "Email is required",
+
                             pattern: {
                                 value:
                                     /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
@@ -127,6 +149,8 @@ export function LoginForm() {
                             focus:border-zinc-600
                             focus:ring-1
                             focus:ring-zinc-700
+                            disabled:cursor-not-allowed
+                            disabled:opacity-60
                         "
                     />
                 </div>
@@ -188,6 +212,7 @@ export function LoginForm() {
                         {...register("password", {
                             required:
                                 "Password is required",
+
                             minLength: {
                                 value: 8,
                                 message:
@@ -207,6 +232,8 @@ export function LoginForm() {
                             focus:border-zinc-600
                             focus:ring-1
                             focus:ring-zinc-700
+                            disabled:cursor-not-allowed
+                            disabled:opacity-60
                         "
                     />
 
@@ -300,6 +327,7 @@ export function LoginForm() {
                                 border-t-zinc-950
                             "
                         />
+
                         Signing in...
                     </>
                 ) : (

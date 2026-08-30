@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { useToast } from "../../components/ui/useToast";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -83,6 +83,8 @@ type RegisterFormValues = z.infer<
 
 export function RegisterForm() {
     const router = useRouter();
+
+    const { success, error: showError } = useToast();
 
     const [showPassword, setShowPassword] =
         useState(false);
@@ -177,19 +179,35 @@ export function RegisterForm() {
             .trim()
             .toLowerCase();
 
-        const success = await register({
+        const registrationSuccess = await register({
             name: values.name.trim(),
             email: normalizedEmail,
             password: values.password,
         });
 
-        if (success) {
-            router.push(
-                `/verify-email?email=${encodeURIComponent(
-                    normalizedEmail,
-                )}`,
+        if (!registrationSuccess) {
+            const currentError =
+                useAuthStore.getState().error;
+
+            showError(
+                "Registration failed",
+                currentError ??
+                "Unable to create your account. Please try again.",
             );
+
+            return;
         }
+
+        success(
+            "Account created",
+            "We've sent a verification email to your inbox.",
+        );
+
+        router.push(
+            `/verify-email?email=${encodeURIComponent(
+                normalizedEmail,
+            )}`,
+        );
     };
 
     const handleFieldChange = () => {
@@ -239,12 +257,11 @@ export function RegisterForm() {
                             focus:ring-zinc-700
                             disabled:cursor-not-allowed
                             disabled:opacity-60
-                            ${
-                                errors.name
-                                    ? "border-red-900/70"
-                                    : isNameValid
-                                      ? "border-emerald-500/40"
-                                      : "border-zinc-800"
+                            ${errors.name
+                                ? "border-red-900/70"
+                                : isNameValid
+                                    ? "border-emerald-500/40"
+                                    : "border-zinc-800"
                             }
                         `}
                     />
@@ -303,12 +320,11 @@ export function RegisterForm() {
                             focus:ring-zinc-700
                             disabled:cursor-not-allowed
                             disabled:opacity-60
-                            ${
-                                errors.email
-                                    ? "border-red-900/70"
-                                    : isEmailValid
-                                      ? "border-emerald-500/40"
-                                      : "border-zinc-800"
+                            ${errors.email
+                                ? "border-red-900/70"
+                                : isEmailValid
+                                    ? "border-emerald-500/40"
+                                    : "border-zinc-800"
                             }
                         `}
                     />
@@ -371,10 +387,9 @@ export function RegisterForm() {
                             focus:ring-zinc-700
                             disabled:cursor-not-allowed
                             disabled:opacity-60
-                            ${
-                                errors.password
-                                    ? "border-red-900/70"
-                                    : "border-zinc-800"
+                            ${errors.password
+                                ? "border-red-900/70"
+                                : "border-zinc-800"
                             }
                         `}
                     />
@@ -422,18 +437,16 @@ export function RegisterForm() {
                             (requirement) => (
                                 <div
                                     key={requirement.label}
-                                    className={`flex items-center gap-2 text-xs transition-colors ${
-                                        requirement.valid
-                                            ? "text-emerald-400"
-                                            : "text-zinc-600"
-                                    }`}
+                                    className={`flex items-center gap-2 text-xs transition-colors ${requirement.valid
+                                        ? "text-emerald-400"
+                                        : "text-zinc-600"
+                                        }`}
                                 >
                                     <span
-                                        className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border ${
-                                            requirement.valid
-                                                ? "border-emerald-500/60 bg-emerald-500/10"
-                                                : "border-zinc-700"
-                                        }`}
+                                        className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border ${requirement.valid
+                                            ? "border-emerald-500/60 bg-emerald-500/10"
+                                            : "border-zinc-700"
+                                            }`}
                                     >
                                         {requirement.valid ? (
                                             <Check className="h-2.5 w-2.5" />
@@ -499,12 +512,11 @@ export function RegisterForm() {
                             focus:ring-zinc-700
                             disabled:cursor-not-allowed
                             disabled:opacity-60
-                            ${
-                                errors.confirmPassword
-                                    ? "border-red-900/70"
-                                    : isConfirmPasswordValid
-                                      ? "border-emerald-500/40"
-                                      : "border-zinc-800"
+                            ${errors.confirmPassword
+                                ? "border-red-900/70"
+                                : isConfirmPasswordValid
+                                    ? "border-emerald-500/40"
+                                    : "border-zinc-800"
                             }
                         `}
                     />

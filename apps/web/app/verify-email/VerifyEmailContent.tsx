@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 
 import { useAuthStore } from "../../stores/auth.store";
+import { useToast } from "../providers/ToastProvider";
 
 type VerificationState =
     | "waiting"
@@ -45,6 +46,11 @@ export function VerifyEmailContent() {
             (state) =>
                 state.isResendingVerificationEmail,
         );
+
+    const {
+        success: showSuccess,
+        error: showError,
+    } = useToast();
 
     const [verificationState, setVerificationState] =
         useState<VerificationState>("waiting");
@@ -82,13 +88,27 @@ export function VerifyEmailContent() {
 
             if (success) {
                 setVerificationState("success");
+
+                showSuccess(
+                    "Email verified",
+                    "Your email address has been verified successfully.",
+                );
             } else {
                 setVerificationState("error");
+
+                const currentError =
+                    useAuthStore.getState().error;
+
+                showError(
+                    "Verification failed",
+                    currentError ??
+                        "This verification link is invalid or has expired.",
+                );
             }
         };
 
         void verify();
-    }, [searchParams, verifyEmail]);
+    }, [searchParams, verifyEmail, showSuccess, showError]);
 
     useEffect(() => {
         if (cooldown <= 0) {
@@ -123,6 +143,20 @@ export function VerifyEmailContent() {
         if (success) {
             setResendSuccess(true);
             setCooldown(60);
+
+            showSuccess(
+                "Verification email sent",
+                "Please check your inbox for the new verification link.",
+            );
+        } else {
+            const currentError =
+                useAuthStore.getState().error;
+
+            showError(
+                "Unable to resend email",
+                currentError ??
+                    "Please try again later.",
+            );
         }
     };
 
@@ -132,7 +166,6 @@ export function VerifyEmailContent() {
 
     /*
      * Waiting state
-     * User reached this page after registration.
      */
     if (verificationState === "waiting") {
         return (
