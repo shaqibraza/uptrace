@@ -123,6 +123,7 @@ const recentTraceColumns: ResponsiveColumn<RecentTrace>[] = [
     {
         key: "service",
         header: "Service",
+        mobileLabel: "Service",
         render: (trace) => (
             <span className="flex items-center gap-2">
                 <span className="h-1.5 w-1.5 rounded-full bg-cyan-500/60" />
@@ -133,6 +134,7 @@ const recentTraceColumns: ResponsiveColumn<RecentTrace>[] = [
     {
         key: "duration",
         header: "Duration",
+        mobileLabel: "Duration",
         render: (trace) => (
             <span className="font-mono text-xs text-zinc-600">
                 {trace.duration}
@@ -142,6 +144,7 @@ const recentTraceColumns: ResponsiveColumn<RecentTrace>[] = [
     {
         key: "status",
         header: "Status",
+        mobileLabel: "Status",
         render: (trace) =>
             trace.status === "OK" ? (
                 <span className="flex items-center gap-1.5 text-xs text-emerald-500">
@@ -158,6 +161,7 @@ const recentTraceColumns: ResponsiveColumn<RecentTrace>[] = [
     {
         key: "time",
         header: "Time",
+        mobileLabel: "Time",
         render: (trace) => (
             <span className="text-xs text-zinc-700">
                 {trace.time}
@@ -175,20 +179,13 @@ export default function DashboardPage() {
 
             <main className="lg:ml-64">
                 <div className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8">
-
-                    {/* ================================================== */}
-                    {/* Header                                             */}
-                    {/* ================================================== */}
-
+                    {/* Header */}
                     <div className="mb-7 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
                         <div>
                             <div className="mb-2 flex items-center gap-2 text-xs text-zinc-600">
                                 <Activity className="h-3.5 w-3.5" />
-
                                 <span>Monitoring</span>
-
                                 <span>/</span>
-
                                 <span>Overview</span>
                             </div>
 
@@ -203,7 +200,7 @@ export default function DashboardPage() {
                         </div>
 
                         <div className="flex items-center gap-2">
-                            {/* Live */}
+                            {/* Live indicator */}
                             <div className="flex items-center gap-2 rounded-lg border border-zinc-900 bg-zinc-950 px-3 py-2">
                                 <span className="relative flex h-1.5 w-1.5">
                                     <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500/50" />
@@ -232,16 +229,12 @@ export default function DashboardPage() {
                                 "
                             >
                                 Last 24 hours
-
                                 <ChevronDown className="h-3.5 w-3.5" />
                             </button>
                         </div>
                     </div>
 
-                    {/* ================================================== */}
-                    {/* Stats                                               */}
-                    {/* ================================================== */}
-
+                    {/* Stats */}
                     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                         <MetricCard
                             icon={Activity}
@@ -276,10 +269,7 @@ export default function DashboardPage() {
                         />
                     </div>
 
-                    {/* ================================================== */}
-                    {/* Charts                                               */}
-                    {/* ================================================== */}
-
+                    {/* Charts */}
                     <div className="mt-6 grid gap-6 xl:grid-cols-2">
                         <ChartCard
                             title="Request volume"
@@ -296,12 +286,8 @@ export default function DashboardPage() {
                         />
                     </div>
 
-                    {/* ================================================== */}
-                    {/* Service Health + Error Summary                       */}
-                    {/* ================================================== */}
-
+                    {/* Service Health + Error Summary */}
                     <div className="mt-6 grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
-
                         {/* Service Health */}
                         <section className="overflow-hidden rounded-xl border border-zinc-900 bg-zinc-950">
                             <div className="flex items-center justify-between border-b border-zinc-900 px-5 py-4">
@@ -320,7 +306,6 @@ export default function DashboardPage() {
                                     className="flex items-center gap-1 text-[11px] text-zinc-600 transition-colors hover:text-zinc-300"
                                 >
                                     View all
-
                                     <ArrowRight className="h-3 w-3" />
                                 </Link>
                             </div>
@@ -369,8 +354,7 @@ export default function DashboardPage() {
 
                                             <p
                                                 className={`mt-1 text-[10px] ${
-                                                    service.status ===
-                                                    "Healthy"
+                                                    service.status === "Healthy"
                                                         ? "text-emerald-600"
                                                         : "text-amber-500"
                                                 }`}
@@ -406,7 +390,6 @@ export default function DashboardPage() {
 
                                         <p className="mt-1 flex items-center gap-1 text-[11px] text-emerald-500">
                                             <ArrowDownRight className="h-3 w-3" />
-
                                             14.2% lower
                                         </p>
                                     </div>
@@ -445,10 +428,7 @@ export default function DashboardPage() {
                         </section>
                     </div>
 
-                    {/* ================================================== */}
-                    {/* Recent Traces                                       */}
-                    {/* ================================================== */}
-
+                    {/* Recent Traces */}
                     <section className="mt-6 overflow-hidden rounded-xl border border-zinc-900 bg-zinc-950">
                         <div className="flex items-center justify-between border-b border-zinc-900 px-5 py-4">
                             <div>
@@ -471,7 +451,6 @@ export default function DashboardPage() {
                                 "
                             >
                                 View all
-
                                 <ArrowRight className="h-3 w-3" />
                             </Link>
                         </div>
@@ -487,12 +466,8 @@ export default function DashboardPage() {
                         />
                     </section>
 
-                    {/* ================================================== */}
-                    {/* Bottom Cards                                        */}
-                    {/* ================================================== */}
-
+                    {/* Bottom Cards */}
                     <div className="mt-6 grid gap-6 md:grid-cols-2">
-
                         {/* Database */}
                         <Link
                             href="/dashboard/connections"
@@ -561,9 +536,9 @@ export default function DashboardPage() {
     );
 }
 
-/* ========================================================================== */
-/* Metric Card                                                                */
-/* ========================================================================== */
+/* ==========================================================================
+   Metric Card
+   ========================================================================== */
 
 function MetricCard({
     icon: Icon,
@@ -640,9 +615,9 @@ function MetricCard({
     );
 }
 
-/* ========================================================================== */
-/* Chart Card                                                                 */
-/* ========================================================================== */
+/* ==========================================================================
+   Chart Card
+   ========================================================================== */
 
 function ChartCard({
     title,
@@ -691,7 +666,7 @@ function ChartCard({
                     <div className="absolute inset-0 flex items-end gap-[3px] px-1">
                         {data.map((item, index) => (
                             <div
-                                key={index}
+                                key={`${item}-${index}`}
                                 className="group relative flex h-full flex-1 items-end"
                             >
                                 <div
@@ -724,9 +699,9 @@ function ChartCard({
     );
 }
 
-/* ========================================================================== */
-/* Error Row                                                                  */
-/* ========================================================================== */
+/* ==========================================================================
+   Error Row
+   ========================================================================== */
 
 function ErrorRow({
     endpoint,

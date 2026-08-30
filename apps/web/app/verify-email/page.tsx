@@ -1,6 +1,5 @@
 import Link from "next/link";
 import {
-    ArrowLeft,
     CheckCircle2,
     Mail,
 } from "lucide-react";
