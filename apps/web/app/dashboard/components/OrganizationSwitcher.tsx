@@ -293,7 +293,7 @@ export function OrganizationSwitcher() {
                             {isLoading
                                 ? "Loading..."
                                 : selectedOrganization?.name ??
-                                  "Select organization"}
+                                "Select organization"}
                         </span>
 
                         <ChevronDown
@@ -574,7 +574,7 @@ export function OrganizationSwitcher() {
                 </div>
 
                 {/* Environment */}
-                <div
+                {/* <div
                     className="
                         hidden
                         items-center gap-1.5
@@ -597,7 +597,7 @@ export function OrganizationSwitcher() {
                     >
                         production
                     </span>
-                </div>
+                </div> */}
             </div>
 
             {/* Create Organization Modal */}

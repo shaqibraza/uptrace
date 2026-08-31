@@ -14,8 +14,8 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Uptrace - See what your applications are really doing",
-  description: "Uptrace gives engineering teams a clear view of application traces, services, and errors. Connect your application with OpenTelemetry and investigate production issues from one place.",
+  title: "Uptrace - API and website monitoring!",
+  description: "See what your applications are really doing",
 };
 
 export default function RootLayout({

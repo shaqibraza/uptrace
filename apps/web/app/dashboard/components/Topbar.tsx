@@ -20,6 +20,7 @@ import { MobileSidebar } from "./MobileSidebar";
 import { OrganizationSwitcher } from "./OrganizationSwitcher";
 import { useAuthStore } from "../../../stores/auth.store";
 import { useToast } from "../../providers/ToastProvider";
+import { ProjectSwitcher } from "./ProjectSwitcher";
 
 export function Topbar() {
     const router = useRouter();
@@ -200,8 +201,9 @@ export function Topbar() {
                             <Menu className="h-5 w-5" />
                         </button>
 
-                        {/* Organization + Environment */}
+                        {/* Organization + Project */}
                         <OrganizationSwitcher />
+                        <ProjectSwitcher />
                     </div>
 
                     {/* Right Side */}
