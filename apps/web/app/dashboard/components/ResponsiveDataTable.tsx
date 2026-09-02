@@ -100,10 +100,9 @@ export function ResponsiveDataTable<T>({
                                         border-zinc-900/70
                                         last:border-0
                                         transition-colors
-                                        ${
-                                            onRowClick
-                                                ? "cursor-pointer hover:bg-zinc-900/40"
-                                                : "hover:bg-zinc-900/20"
+                                        ${onRowClick
+                                            ? "cursor-pointer hover:bg-zinc-900/40"
+                                            : "hover:bg-zinc-900/20"
                                         }
                                     `}
                                 >
@@ -122,15 +121,15 @@ export function ResponsiveDataTable<T>({
                                             >
                                                 {column.render
                                                     ? column.render(
-                                                          item,
-                                                          index,
-                                                      )
+                                                        item,
+                                                        index,
+                                                    )
                                                     : String(
-                                                          item[
-                                                              column.key as keyof T
-                                                          ] ??
-                                                              "",
-                                                      )}
+                                                        item[
+                                                        column.key as keyof T
+                                                        ] ??
+                                                        "",
+                                                    )}
                                             </td>
                                         ),
                                     )}
@@ -189,10 +188,9 @@ export function ResponsiveDataTable<T>({
                                 bg-zinc-950
                                 p-4
                                 text-left
-                                ${
-                                    onRowClick
-                                        ? "cursor-pointer transition-colors hover:border-zinc-800 hover:bg-zinc-900/40"
-                                        : ""
+                                ${onRowClick
+                                    ? "cursor-pointer transition-colors hover:border-zinc-800 hover:bg-zinc-900/40"
+                                    : ""
                                 }
                             `}
                         >
@@ -210,15 +208,15 @@ export function ResponsiveDataTable<T>({
                                         <div className="truncate text-xs text-zinc-300">
                                             {primaryColumn.render
                                                 ? primaryColumn.render(
-                                                      item,
-                                                      index,
-                                                  )
+                                                    item,
+                                                    index,
+                                                )
                                                 : String(
-                                                      item[
-                                                          primaryColumn.key as keyof T
-                                                      ] ??
-                                                          "",
-                                                  )}
+                                                    item[
+                                                    primaryColumn.key as keyof T
+                                                    ] ??
+                                                    "",
+                                                )}
                                         </div>
                                     </div>
                                 </div>
@@ -227,41 +225,41 @@ export function ResponsiveDataTable<T>({
                             {/* Secondary values */}
                             {secondaryColumns.length >
                                 0 && (
-                                <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3">
-                                    {secondaryColumns.map(
-                                        (
-                                            column,
-                                        ) => (
-                                            <div
-                                                key={
-                                                    column.key
-                                                }
-                                            >
-                                                <p className="mb-1 text-[8px] uppercase tracking-wider text-zinc-800">
-                                                    {
-                                                        column.mobileLabel ??
-                                                        column.header
+                                    <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3">
+                                        {secondaryColumns.map(
+                                            (
+                                                column,
+                                            ) => (
+                                                <div
+                                                    key={
+                                                        column.key
                                                     }
-                                                </p>
+                                                >
+                                                    <p className="mb-1 text-[8px] uppercase tracking-wider text-zinc-800">
+                                                        {
+                                                            column.mobileLabel ??
+                                                            column.header
+                                                        }
+                                                    </p>
 
-                                                <div className="truncate text-[10px] text-zinc-500">
-                                                    {column.render
-                                                        ? column.render(
-                                                              item,
-                                                              index,
-                                                          )
-                                                        : String(
-                                                              item[
-                                                                  column.key as keyof T
-                                                              ] ??
-                                                                  "",
-                                                          )}
+                                                    <div className="truncate text-[10px] text-zinc-500">
+                                                        {column.render
+                                                            ? column.render(
+                                                                item,
+                                                                index,
+                                                            )
+                                                            : String(
+                                                                item[
+                                                                column.key as keyof T
+                                                                ] ??
+                                                                "",
+                                                            )}
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        ),
-                                    )}
-                                </div>
-                            )}
+                                            ),
+                                        )}
+                                    </div>
+                                )}
                         </div>
                     );
                 })}

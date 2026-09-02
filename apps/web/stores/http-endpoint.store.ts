@@ -107,6 +107,10 @@ export const useHttpEndpointStore =
                 isLoading: true,
                 isFetching: true,
                 error: null,
+                checkResults: {},
+                latestCheckResults: {},
+                isLoadingCheckResults: false,
+                checkResultsError: null,
             });
 
             try {
@@ -404,20 +408,19 @@ export const useHttpEndpointStore =
                     }),
                 );
 
-                set((state) => {
-                    const checkResults = {
-                        ...state.checkResults,
-                    };
+                const checkResults: Record<
+                    string,
+                    HttpCheckResult[]
+                > = {};
 
-                    for (const item of results) {
-                        checkResults[item.endpointId] =
-                            item.results;
-                    }
+                for (const item of results) {
+                    checkResults[item.endpointId] =
+                        item.results;
+                }
 
-                    return {
-                        checkResults,
-                        isLoadingCheckResults: false,
-                    };
+                set({
+                    checkResults,
+                    isLoadingCheckResults: false,
                 });
             } catch (error) {
                 set({

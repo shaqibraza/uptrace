@@ -572,32 +572,6 @@ export function OrganizationSwitcher() {
                         </div>
                     )}
                 </div>
-
-                {/* Environment */}
-                {/* <div
-                    className="
-                        hidden
-                        items-center gap-1.5
-                        md:flex
-                    "
-                >
-                    <span
-                        className="
-                            h-1.5 w-1.5
-                            rounded-full
-                            bg-emerald-500
-                        "
-                    />
-
-                    <span
-                        className="
-                            text-[10px]
-                            text-zinc-700
-                        "
-                    >
-                        production
-                    </span>
-                </div> */}
             </div>
 
             {/* Create Organization Modal */}

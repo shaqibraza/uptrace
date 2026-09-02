@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
     Activity,
     ChevronDown,
@@ -58,6 +59,8 @@ type HttpMonitoringEndpoint = {
 
 
 export default function HttpMonitoringPage() {
+
+    const router = useRouter();
 
     const [createOpen, setCreateOpen] = useState(false);
     const [editingEndpointId, setEditingEndpointId] = useState<string | null>(null);
@@ -276,6 +279,14 @@ export default function HttpMonitoringPage() {
     const [showFilters, setShowFilters] =
         useState(false);
 
+    type TimeRange = "1h" | "6h" | "24h" | "7d" | "30d";
+
+    const [timeRange, setTimeRange] =
+        useState<TimeRange>("24h");
+
+    const [showTimeRange, setShowTimeRange] =
+        useState(false);
+
     const selectedProject = useProjectStore(
         (state) => state.selectedProject,
     );
@@ -376,64 +387,133 @@ export default function HttpMonitoringPage() {
         }
     }, [checkResultsError]);
 
-    const monitoringEndpoints =
-        useMemo<HttpMonitoringEndpoint[]>(
-            () =>
-                endpoints.map((endpoint) => {
-                    const result =
-                        latestCheckResults[endpoint.id];
+    const timeRangeMs = useMemo(() => {
+        const ranges: Record<TimeRange, number> = {
+            "1h": 60 * 60 * 1000,
+            "6h": 6 * 60 * 60 * 1000,
+            "24h": 24 * 60 * 60 * 1000,
+            "7d": 7 * 24 * 60 * 60 * 1000,
+            "30d": 30 * 24 * 60 * 60 * 1000,
+        };
 
-                    return {
-                        id: endpoint.id,
-                        projectId:
-                            endpoint.projectId,
-                        name: endpoint.name,
-                        description:
-                            `${endpoint.method} endpoint monitoring`,
-                        method:
-                            endpoint.method as EndpointMethod,
-                        url: endpoint.url,
-                        status:
-                            result?.status ??
-                            "PENDING",
-                        responseTime:
-                            result?.responseTimeMs != null
-                                ? `${Math.round(result.responseTimeMs)} ms`
-                                : "—",
-                        responseTimeMs:
-                            result?.responseTimeMs ?? null,
-                        statusCode:
-                            result?.statusCode ?? null,
-                        uptime:
-                            (() => {
-                                const results =
-                                    checkResults[endpoint.id] ?? [];
+        return ranges[timeRange];
+    }, [timeRange]);
 
-                                if (!results.length) {
-                                    return "—";
-                                }
+    const rangeStart = useMemo(
+        () => Date.now() - timeRangeMs,
+        [timeRangeMs],
+    );
 
-                                const upChecks =
-                                    results.filter(
-                                        (check) =>
-                                            check.status === "UP",
-                                    ).length;
+    const filteredCheckResults = useMemo(() => {
+        const result: Record<string, typeof checkResults[string]> = {};
 
-                                const uptime =
-                                    (upChecks / results.length) * 100;
+        for (const [endpointId, results] of Object.entries(checkResults)) {
+            result[endpointId] = results.filter((check) => {
+                const checkedAt = new Date(
+                    check.checkedAt,
+                ).getTime();
 
-                                return `${uptime.toFixed(2)}%`;
-                            })(),
-                        lastChecked:
-                            result?.checkedAt
-                                ? formatLastChecked(
-                                    result.checkedAt,
-                                )
-                                : "Not checked yet",
-                    };
-                }),
-            [endpoints, latestCheckResults, checkResults],
-        );
+                return (
+                    Number.isFinite(checkedAt) &&
+                    checkedAt >= rangeStart
+                );
+            });
+        }
+
+        return result;
+    }, [checkResults, rangeStart]);
+
+    const monitoringEndpoints = useMemo<HttpMonitoringEndpoint[]>(
+        () =>
+            endpoints.map((endpoint) => {
+                const results = filteredCheckResults[endpoint.id] ?? [];
+
+                const result =
+                    results
+                        .slice()
+                        .sort(
+                            (a, b) =>
+                                new Date(b.checkedAt).getTime() -
+                                new Date(a.checkedAt).getTime(),
+                        )[0] ?? null;
+
+                const uptime = results.length
+                    ? (results.filter((check) => check.status === "UP").length /
+                        results.length) *
+                    100
+                    : null;
+
+                return {
+                    id: endpoint.id,
+                    projectId: endpoint.projectId,
+                    name: endpoint.name,
+                    description: `${endpoint.method} endpoint monitoring`,
+                    method: endpoint.method as EndpointMethod,
+                    url: endpoint.url,
+                    status: result?.status ?? "PENDING",
+                    responseTime:
+                        result?.responseTimeMs != null
+                            ? `${Math.round(result.responseTimeMs)} ms`
+                            : "—",
+                    responseTimeMs: result?.responseTimeMs ?? null,
+                    statusCode: result?.statusCode ?? null,
+                    uptime:
+                        uptime != null
+                            ? `${uptime.toFixed(2)}%`
+                            : "—",
+                    lastChecked: result?.checkedAt
+                        ? formatLastChecked(result.checkedAt)
+                        : "Not checked yet",
+                };
+            }),
+        [endpoints, filteredCheckResults],
+    );
+
+    const rangeResults = useMemo(
+        () =>
+            Object.values(filteredCheckResults).flat(),
+        [filteredCheckResults],
+    );
+
+    const healthyCount = useMemo(
+        () =>
+            monitoringEndpoints.filter(
+                (endpoint) => endpoint.status === "UP",
+            ).length,
+        [monitoringEndpoints],
+    );
+
+    const averageResponseTime = useMemo(() => {
+        const responseTimes = rangeResults
+            .map((result) => result.responseTimeMs)
+            .filter(
+                (responseTime): responseTime is number =>
+                    responseTime != null,
+            );
+
+        if (!responseTimes.length) {
+            return null;
+        }
+
+        return responseTimes.reduce(
+            (sum, responseTime) => sum + responseTime,
+            0,
+        ) / responseTimes.length;
+    }, [rangeResults]);
+
+    const averageUptime = useMemo(() => {
+        const checks = rangeResults.length;
+
+        if (!checks) {
+            return null;
+        }
+
+        const upChecks = rangeResults.filter(
+            (result) => result.status === "UP",
+        ).length;
+
+        return (upChecks / checks) * 100;
+    }, [rangeResults]);
 
     const filteredEndpoints =
         useMemo(() => {
@@ -607,12 +687,6 @@ export default function HttpMonitoringPage() {
             },
         ];
 
-    const healthyCount =
-        monitoringEndpoints.filter(
-            (endpoint) =>
-                endpoint.status === "UP",
-        ).length;
-
     const totalCount =
         monitoringEndpoints.length;
 
@@ -662,28 +736,76 @@ export default function HttpMonitoringPage() {
                             </div>
 
                             <div className="flex items-center gap-2">
-                                <button
-                                    type="button"
-                                    className="
-                                        flex h-9
-                                        items-center gap-2
-                                        rounded-lg
-                                        border border-zinc-900
-                                        bg-zinc-950
-                                        px-3
-                                        text-xs
-                                        text-zinc-500
-                                        transition-colors
-                                        hover:border-zinc-800
-                                        hover:text-zinc-300
-                                    "
-                                >
-                                    <Clock3 className="h-3.5 w-3.5" />
+                                <div className="relative">
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            setShowTimeRange((current) => !current)
+                                        }
+                                        className="
+            flex h-9
+            items-center gap-2
+            rounded-lg
+            border border-zinc-900
+            bg-zinc-950
+            px-3
+            text-xs
+            text-zinc-500
+            transition-colors
+            hover:border-zinc-800
+            hover:text-zinc-300
+        "
+                                    >
+                                        <Clock3 className="h-3.5 w-3.5" />
 
-                                    Last 24 hours
+                                        {timeRange === "1h"
+                                            ? "Last 1 hour"
+                                            : timeRange === "6h"
+                                                ? "Last 6 hours"
+                                                : timeRange === "24h"
+                                                    ? "Last 24 hours"
+                                                    : timeRange === "7d"
+                                                        ? "Last 7 days"
+                                                        : "Last 30 days"}
 
-                                    <ChevronDown className="h-3.5 w-3.5" />
-                                </button>
+                                        <ChevronDown className="h-3.5 w-3.5" />
+                                    </button>
+
+                                    {showTimeRange && (
+                                        <div className="absolute right-0 top-full z-50 mt-2 w-40 overflow-hidden rounded-lg border border-zinc-900 bg-zinc-950 p-1 shadow-2xl">
+                                            {[
+                                                ["1h", "Last 1 hour"],
+                                                ["6h", "Last 6 hours"],
+                                                ["24h", "Last 24 hours"],
+                                                ["7d", "Last 7 days"],
+                                                ["30d", "Last 30 days"],
+                                            ].map(([value, label]) => (
+                                                <button
+                                                    key={value}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setTimeRange(
+                                                            value as TimeRange,
+                                                        );
+                                                        setShowTimeRange(false);
+                                                    }}
+                                                    className={`
+                        flex w-full items-center
+                        rounded-md px-3 py-2
+                        text-left text-xs
+                        transition-colors
+                        ${timeRange === value
+                                                            ? "bg-zinc-900 text-zinc-200"
+                                                            : "text-zinc-600 hover:bg-zinc-900/60 hover:text-zinc-400"
+                                                        }
+                    `}
+                                                >
+                                                    {label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
 
                                 <button
                                     type="button"
@@ -714,124 +836,60 @@ export default function HttpMonitoringPage() {
                         <SummaryCard
                             icon={Activity}
                             label="Total endpoints"
-                            value={String(
-                                totalCount,
-                            )}
+                            value={String(totalCount)}
                             detail={`${healthyCount} healthy`}
                         />
 
                         <SummaryCard
                             icon={Activity}
                             label="Healthy endpoints"
-                            value={String(
-                                healthyCount,
-                            )}
+                            value={String(healthyCount)}
                             detail={
                                 totalCount
                                     ? `${Math.round(
-                                        (healthyCount /
-                                            totalCount) *
-                                        100,
+                                        (healthyCount / totalCount) * 100,
                                     )}% healthy`
                                     : "No endpoints"
                             }
-                            positive={
-                                healthyCount > 0
-                            }
+                            positive={healthyCount > 0}
                         />
 
                         <SummaryCard
                             icon={Gauge}
                             label="Avg. response"
                             value={
-                                monitoringEndpoints.some(
-                                    (endpoint) =>
-                                        endpoint.responseTimeMs != null,
-                                )
-                                    ? `${Math.round(
-                                        monitoringEndpoints
-                                            .filter(
-                                                (endpoint) =>
-                                                    endpoint.responseTimeMs != null,
-                                            )
-                                            .reduce(
-                                                (sum, endpoint) =>
-                                                    sum +
-                                                    (endpoint.responseTimeMs ?? 0),
-                                                0,
-                                            ) /
-                                        monitoringEndpoints.filter(
-                                            (endpoint) =>
-                                                endpoint.responseTimeMs != null,
-                                        ).length,
-                                    )} ms`
+                                averageResponseTime != null
+                                    ? `${Math.round(averageResponseTime)} ms`
                                     : "—"
                             }
                             detail={
                                 isLoadingCheckResults
                                     ? "Loading checks"
-                                    : monitoringEndpoints.some(
-                                        (endpoint) =>
-                                            endpoint.responseTimeMs != null,
-                                    )
-                                        ? "Based on latest checks"
+                                    : averageResponseTime != null
+                                        ? "Based on selected range"
                                         : "Waiting for checks"
                             }
                         />
-
 
                         <SummaryCard
                             icon={Clock3}
                             label="Avg. uptime"
                             value={
-                                monitoringEndpoints.some(
-                                    (endpoint) =>
-                                        endpoint.uptime !== "—",
-                                )
-                                    ? `${(
-                                        monitoringEndpoints
-                                            .filter(
-                                                (endpoint) =>
-                                                    endpoint.uptime !== "—",
-                                            )
-                                            .reduce(
-                                                (sum, endpoint) =>
-                                                    sum +
-                                                    Number(
-                                                        endpoint.uptime.replace(
-                                                            "%",
-                                                            "",
-                                                        ),
-                                                    ),
-                                                0,
-                                            ) /
-                                        monitoringEndpoints.filter(
-                                            (endpoint) =>
-                                                endpoint.uptime !== "—",
-                                        ).length
-                                    ).toFixed(2)}%`
+                                averageUptime != null
+                                    ? `${averageUptime.toFixed(2)}%`
                                     : "—"
                             }
                             detail={
                                 isLoadingCheckResults
                                     ? "Loading checks"
-                                    : monitoringEndpoints.some(
-                                        (endpoint) =>
-                                            endpoint.uptime !== "—",
-                                    )
-                                        ? "Based on stored checks"
+                                    : averageUptime != null
+                                        ? "Based on selected range"
                                         : totalCount
                                             ? "Waiting for checks"
                                             : "No endpoints"
                             }
-                            positive={
-                                monitoringEndpoints.some(
-                                    (endpoint) =>
-                                        endpoint.uptime !== "—",
-                                )
-                            }
+                            positive={averageUptime != null}
                         />
-
                     </div>
 
                     <section className="mt-6 rounded-xl border border-zinc-900 bg-zinc-950">
@@ -1091,7 +1149,11 @@ export default function HttpMonitoringPage() {
                                 ) =>
                                     endpoint.id
                                 }
-                                onRowClick={() => { }}
+                                onRowClick={(endpoint) => {
+                                    router.push(
+                                        `/dashboard/http-monitoring/${endpoint.id}`,
+                                    );
+                                }}
                             />
                         ) : (
                             <div className="flex min-h-[300px] flex-col items-center justify-center px-6 text-center">
