@@ -36,7 +36,7 @@ export class HttpEndpointRepository {
         return endpoint;
     };
 
-    async findById(endpointId: string){
+    async findById(endpointId: string) {
         const result = await db
             .select()
             .from(httpEndpoints)
@@ -46,7 +46,7 @@ export class HttpEndpointRepository {
         return result[0] ?? null;
     };
 
-    async findByProjectId(projectId: string){
+    async findByProjectId(projectId: string) {
         return await db
             .select()
             .from(httpEndpoints)
@@ -64,8 +64,8 @@ export class HttpEndpointRepository {
             timeoutMs?: number;
             isActive?: boolean;
         }
-    ){
-        const result = await db 
+    ) {
+        const result = await db
             .update(httpEndpoints)
             .set({
                 ...data,
@@ -77,7 +77,7 @@ export class HttpEndpointRepository {
         return result[0] ?? null;
     };
 
-    async delete(endpoitId: string){
+    async delete(endpoitId: string) {
         const result = await db
             .delete(httpEndpoints)
             .where(eq(httpEndpoints.id, endpoitId))
@@ -87,4 +87,16 @@ export class HttpEndpointRepository {
 
         return result[0] ?? null;
     };
+
+    async findActive() {
+        return await db
+            .select()
+            .from(httpEndpoints)
+            .where(
+                eq(
+                    httpEndpoints.isActive,
+                    true,
+                ),
+            );
+    }
 };

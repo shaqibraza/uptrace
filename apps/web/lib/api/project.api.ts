@@ -80,7 +80,6 @@ export async function getProject(
     projectId: string
 ): Promise<GetProjectResponse> {
     const response = await api.get<GetProjectResponse>(`/projects/${projectId}`);
-
     return response.data;
 };
 

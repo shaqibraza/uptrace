@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import type { KeyboardEvent, ReactNode } from "react";
 
 export type ResponsiveColumn<T> = {
     key: string;
@@ -36,6 +36,23 @@ export function ResponsiveDataTable<T>({
             </div>
         );
     }
+
+    const handleRowKeyDown = (
+        event: KeyboardEvent<HTMLDivElement>,
+        item: T,
+    ) => {
+        if (!onRowClick) {
+            return;
+        }
+
+        if (
+            event.key === "Enter" ||
+            event.key === " "
+        ) {
+            event.preventDefault();
+            onRowClick(item);
+        }
+    };
 
     return (
         <>
@@ -76,9 +93,7 @@ export function ResponsiveDataTable<T>({
                                         index,
                                     )}
                                     onClick={() =>
-                                        onRowClick?.(
-                                            item,
-                                        )
+                                        onRowClick?.(item)
                                     }
                                     className={`
                                         border-b
@@ -93,9 +108,7 @@ export function ResponsiveDataTable<T>({
                                     `}
                                 >
                                     {columns.map(
-                                        (
-                                            column,
-                                        ) => (
+                                        (column) => (
                                             <td
                                                 key={
                                                     column.key
@@ -147,16 +160,28 @@ export function ResponsiveDataTable<T>({
                         visibleColumns.slice(1);
 
                     return (
-                        <button
+                        <div
                             key={rowKey(
                                 item,
                                 index,
                             )}
-                            type="button"
+                            role={
+                                onRowClick
+                                    ? "button"
+                                    : undefined
+                            }
+                            tabIndex={
+                                onRowClick ? 0 : undefined
+                            }
                             onClick={() =>
                                 onRowClick?.(item)
                             }
-                            disabled={!onRowClick}
+                            onKeyDown={(event) =>
+                                handleRowKeyDown(
+                                    event,
+                                    item,
+                                )
+                            }
                             className={`
                                 w-full
                                 rounded-xl
@@ -237,7 +262,7 @@ export function ResponsiveDataTable<T>({
                                     )}
                                 </div>
                             )}
-                        </button>
+                        </div>
                     );
                 })}
             </div>

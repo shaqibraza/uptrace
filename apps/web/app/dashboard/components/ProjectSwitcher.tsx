@@ -46,6 +46,8 @@ export function ProjectSwitcher() {
         (state) => state.projects,
     );
 
+    console.log("projects", projects);
+
     const selectedProject =
         useProjectStore(
             (state) => state.selectedProject,

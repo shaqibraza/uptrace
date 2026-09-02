@@ -24,6 +24,11 @@ const monitoringNavigation = [
         icon: LayoutDashboard,
     },
     {
+        label: "HTTP Monitoring",
+        href: "/dashboard/http-monitoring",
+        icon: Activity,
+    },
+    {
         label: "Traces",
         href: "/dashboard/traces",
         icon: Activity,
@@ -136,15 +141,13 @@ export function Sidebar() {
                     border-r border-zinc-900
                     bg-black
                     transition-all duration-200
-                    ${
-                        collapsed
-                            ? "w-[72px]"
-                            : "w-64"
+                    ${collapsed
+                        ? "w-[72px]"
+                        : "w-64"
                     }
-                    ${
-                        mobileOpen
-                            ? "translate-x-0"
-                            : "-translate-x-full lg:translate-x-0"
+                    ${mobileOpen
+                        ? "translate-x-0"
+                        : "-translate-x-full lg:translate-x-0"
                     }
                 `}
             >
@@ -157,10 +160,9 @@ export function Sidebar() {
                         flex h-16 shrink-0
                         items-center
                         border-b border-zinc-900
-                        ${
-                            collapsed
-                                ? "justify-center px-3"
-                                : "justify-between px-4"
+                        ${collapsed
+                            ? "justify-center px-3"
+                            : "justify-between px-4"
                         }
                     `}
                 >
@@ -464,15 +466,13 @@ function SidebarLink({
                 rounded-lg
                 text-xs
                 transition-colors
-                ${
-                    collapsed
-                        ? "justify-center px-2 py-2.5"
-                        : "px-3 py-2.5"
+                ${collapsed
+                    ? "justify-center px-2 py-2.5"
+                    : "px-3 py-2.5"
                 }
-                ${
-                    active
-                        ? "bg-zinc-900 text-zinc-200"
-                        : "text-zinc-600 hover:bg-zinc-950 hover:text-zinc-300"
+                ${active
+                    ? "bg-zinc-900 text-zinc-200"
+                    : "text-zinc-600 hover:bg-zinc-950 hover:text-zinc-300"
                 }
             `}
         >
@@ -485,10 +485,9 @@ function SidebarLink({
                 className={`
                     h-3.5 w-3.5 shrink-0
                     transition-colors
-                    ${
-                        active
-                            ? "text-zinc-300"
-                            : "text-zinc-700 group-hover:text-zinc-500"
+                    ${active
+                        ? "text-zinc-300"
+                        : "text-zinc-700 group-hover:text-zinc-500"
                     }
                 `}
             />
