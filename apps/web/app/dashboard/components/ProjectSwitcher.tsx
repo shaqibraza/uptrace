@@ -46,8 +46,6 @@ export function ProjectSwitcher() {
         (state) => state.projects,
     );
 
-    console.log("projects", projects);
-
     const selectedProject =
         useProjectStore(
             (state) => state.selectedProject,
@@ -68,11 +66,6 @@ export function ProjectSwitcher() {
     const isDeleting = useProjectStore(
         (state) => state.isDeleting,
     );
-
-    const fetchProjects =
-        useProjectStore(
-            (state) => state.fetchProjects,
-        );
 
     const createProject =
         useProjectStore(
@@ -98,23 +91,6 @@ export function ProjectSwitcher() {
         success,
         error: showError,
     } = useToast();
-
-    /*
-     * Fetch projects whenever
-     * selected organization changes.
-     */
-    useEffect(() => {
-        if (!selectedOrganization?.id) {
-            return;
-        }
-
-        void fetchProjects(
-            selectedOrganization.id,
-        );
-    }, [
-        selectedOrganization?.id,
-        fetchProjects,
-    ]);
 
     /*
      * Close dropdown when

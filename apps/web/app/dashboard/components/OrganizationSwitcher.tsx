@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
     Check,
     ChevronDown,
@@ -57,11 +57,6 @@ export function OrganizationSwitcher() {
         (state) => state.isDeleting,
     );
 
-    const fetchOrganizations =
-        useOrganizationStore(
-            (state) => state.fetchOrganizations,
-        );
-
     const createOrganization =
         useOrganizationStore(
             (state) => state.createOrganization,
@@ -84,10 +79,6 @@ export function OrganizationSwitcher() {
 
     const { success, error: showError } =
         useToast();
-
-    useEffect(() => {
-        void fetchOrganizations();
-    }, [fetchOrganizations]);
 
     const getInitials = (name: string) => {
         return (

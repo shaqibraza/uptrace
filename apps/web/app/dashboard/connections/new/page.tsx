@@ -16,8 +16,6 @@ import {
     Wifi,
 } from "lucide-react";
 
-import { Sidebar } from "../../components/Sidebar";
-import { Topbar } from "../../components/Topbar";
 
 export default function NewConnectionPage() {
     const [showPassword, setShowPassword] = useState(false);
@@ -91,13 +89,9 @@ export default function NewConnectionPage() {
     }
 
     return (
-        <div className="min-h-screen bg-black text-zinc-100">
-            <Sidebar />
-
-            <Topbar />
-
-            <main className="lg:ml-64">
-                <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:px-8">
+        <div>
+            <main>
+                <div>
 
                     {/* Back */}
                     <Link

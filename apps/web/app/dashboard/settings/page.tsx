@@ -16,8 +16,6 @@ import {
     User,
 } from "lucide-react";
 
-import { Sidebar } from "../components/Sidebar";
-import { Topbar } from "../components/Topbar";
 
 type Tab = "General" | "Project" | "Notifications" | "Security";
 
@@ -34,13 +32,9 @@ export default function SettingsPage() {
     };
 
     return (
-        <div className="min-h-screen bg-black text-zinc-100">
-            <Sidebar />
-
-            <Topbar />
-
-            <main className="lg:ml-64">
-                <div className="mx-auto max-w-[1200px] px-4 py-6 sm:px-6 lg:px-8">
+        <div>
+            <main>
+                <div>
 
                     {/* Header */}
                     <div className="mb-7">

@@ -25,6 +25,4 @@ span.setAttribute("source", "uptrace-api");
 
 span.end();
 
-console.log("=== TEST SPAN CREATED ===");
-
 export default sdk;
