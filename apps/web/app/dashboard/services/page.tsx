@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
     Activity,
@@ -20,6 +20,10 @@ import {
     type ResponsiveColumn,
 } from "../components/ResponsiveDataTable";
 
+import { useServicesStore } from "../../../stores/services.store";
+import { useProjectStore } from "../../../stores/project.store";
+import { useAuthStore } from "../../../stores/auth.store";
+
 type ServiceStatus = "Healthy" | "Degraded" | "Down";
 
 type Service = {
@@ -31,91 +35,19 @@ type Service = {
     p95: string;
     errorRate: string;
     uptime: string;
-    trend: "up" | "down";
+    trend: "up" | "down" | "flat";
     trendValue: string;
     instances: number;
 };
 
-const services: Service[] = [
-    {
-        name: "uptrace-api",
-        status: "Healthy",
-        requests: "1.24M",
-        requestRate: "28.6 req/s",
-        latency: "111ms",
-        p95: "384ms",
-        errorRate: "0.12%",
-        uptime: "99.98%",
-        trend: "up",
-        trendValue: "12.4%",
-        instances: 3,
-    },
-    {
-        name: "web",
-        status: "Healthy",
-        requests: "782K",
-        requestRate: "18.2 req/s",
-        latency: "84ms",
-        p95: "184ms",
-        errorRate: "0.08%",
-        uptime: "99.99%",
-        trend: "up",
-        trendValue: "8.7%",
-        instances: 2,
-    },
-    {
-        name: "worker",
-        status: "Healthy",
-        requests: "321K",
-        requestRate: "7.4 req/s",
-        latency: "42ms",
-        p95: "67ms",
-        errorRate: "0.03%",
-        uptime: "100%",
-        trend: "up",
-        trendValue: "3.2%",
-        instances: 4,
-    },
-    {
-        name: "auth-service",
-        status: "Degraded",
-        requests: "143K",
-        requestRate: "3.1 req/s",
-        latency: "218ms",
-        p95: "391ms",
-        errorRate: "2.84%",
-        uptime: "98.72%",
-        trend: "down",
-        trendValue: "18.4%",
-        instances: 2,
-    },
-    {
-        name: "notification-service",
-        status: "Healthy",
-        requests: "91K",
-        requestRate: "2.1 req/s",
-        latency: "56ms",
-        p95: "92ms",
-        errorRate: "0.16%",
-        uptime: "99.95%",
-        trend: "up",
-        trendValue: "5.1%",
-        instances: 2,
-    },
-    {
-        name: "postgres",
-        status: "Healthy",
-        requests: "64K",
-        requestRate: "1.6 req/s",
-        latency: "18ms",
-        p95: "41ms",
-        errorRate: "0.01%",
-        uptime: "100%",
-        trend: "up",
-        trendValue: "1.8%",
-        instances: 1,
-    },
-];
+type TimeRange = "1h" | "6h" | "24h" | "7d";
+
+const TIME_RANGES: Record<TimeRange, { label: string; durationMs: number }> = {
+    "1h": { label: "Last 1 hour", durationMs: 60 * 60 * 1000 },
+    "6h": { label: "Last 6 hours", durationMs: 6 * 60 * 60 * 1000 },
+    "24h": { label: "Last 24 hours", durationMs: 24 * 60 * 60 * 1000 },
+    "7d": { label: "Last 7 days", durationMs: 7 * 24 * 60 * 60 * 1000 },
+};
 
 export default function ServicesPage() {
     const [search, setSearch] = useState("");
@@ -123,6 +55,119 @@ export default function ServicesPage() {
         useState<"All" | ServiceStatus>("All");
     const [showFilters, setShowFilters] =
         useState(false);
+    const [timeRange, setTimeRange] =
+        useState<TimeRange>("24h");
+    const [showTimeRangeMenu, setShowTimeRangeMenu] =
+        useState(false);
+
+    const authStatus = useAuthStore(
+        (state) => state.status,
+    );
+
+    const selectedProject = useProjectStore(
+        (state) => state.selectedProject,
+    );
+
+    const {
+        services: serviceData,
+        isLoading,
+        error,
+        fetchServices,
+    } = useServicesStore();
+
+    useEffect(() => {
+        const projectId = selectedProject?.id;
+
+        if (
+            authStatus !== "authenticated" ||
+            !projectId
+        ) {
+            return;
+        }
+
+        const endTime = new Date();
+        const startTime = new Date(
+            endTime.getTime() -
+                TIME_RANGES[timeRange].durationMs,
+        );
+
+        fetchServices(projectId, {
+            startTime: startTime.toISOString(),
+            endTime: endTime.toISOString(),
+        });
+    }, [
+        authStatus,
+        selectedProject?.id,
+        timeRange,
+        fetchServices,
+    ]);
+
+    // Real overview data
+    const totalServices = serviceData.length;
+
+    const totalRequests = serviceData.reduce(
+        (total, service) =>
+            total + service.requestCount,
+        0,
+    );
+
+    const totalErrors = serviceData.reduce(
+        (total, service) =>
+            total + service.errorCount,
+        0,
+    );
+
+    const healthyServices = serviceData.filter(
+        (service) => service.errorRate < 1,
+    ).length;
+
+    const overallErrorRate =
+        totalRequests > 0
+            ? (totalErrors / totalRequests) * 100
+            : 0;
+
+    const overallP95Latency =
+        serviceData.length > 0
+            ? Math.max(
+                ...serviceData.map(
+                    (service) =>
+                        service.p95LatencyMs,
+                ),
+            )
+            : 0;
+
+    const services: Service[] = serviceData.map(
+        (service) => ({
+            name: service.name,
+
+            status:
+                service.errorRate >= 5
+                    ? "Down"
+                    : service.errorRate >= 1
+                        ? "Degraded"
+                        : "Healthy",
+
+            requests:
+                service.requestCount.toLocaleString(),
+
+            requestRate: "—",
+
+            latency: `${service.averageLatencyMs}ms`,
+
+            p95: `${service.p95LatencyMs}ms`,
+
+            errorRate:
+                `${service.errorRate.toFixed(2)}%`,
+
+            uptime: `${service.uptime.toFixed(2)}%`,
+
+            trend: service.trend,
+
+            trendValue: `${service.trendValue >= 0 ? "+" : ""}${service.trendValue.toFixed(2)}%`,
+
+            instances: 0,
+        }),
+    );
 
     const filteredServices = useMemo(() => {
         const query = search
@@ -145,7 +190,11 @@ export default function ServicesPage() {
                 matchesStatus
             );
         });
-    }, [search, statusFilter]);
+    }, [
+        services,
+        search,
+        statusFilter,
+    ]);
 
     const columns: ResponsiveColumn<Service>[] =
         [
@@ -153,9 +202,12 @@ export default function ServicesPage() {
                 key: "service",
                 header: "Service",
                 mobileLabel: "Service",
+
                 render: (service) => (
                     <Link
-                        href={`/dashboard/services/${service.name}`}
+                        href={`/dashboard/services/${encodeURIComponent(
+                            service.name,
+                        )}`}
                         onClick={(event) =>
                             event.stopPropagation()
                         }
@@ -171,19 +223,23 @@ export default function ServicesPage() {
                             </p>
 
                             <p className="mt-1 text-[10px] text-zinc-800">
-                                {service.instances}{" "}
-                                {service.instances ===
-                                1
-                                    ? "instance"
-                                    : "instances"}
+                                {service.instances > 0
+                                    ? `${service.instances} ${service.instances ===
+                                        1
+                                        ? "instance"
+                                        : "instances"
+                                    }`
+                                    : "Instance data unavailable"}
                             </p>
                         </div>
                     </Link>
                 ),
             },
+
             {
                 key: "status",
                 header: "Status",
+
                 render: (service) => (
                     <StatusBadge
                         status={
@@ -192,9 +248,11 @@ export default function ServicesPage() {
                     />
                 ),
             },
+
             {
                 key: "requests",
                 header: "Requests",
+
                 render: (service) => (
                     <div>
                         <p className="font-mono text-xs text-zinc-500">
@@ -202,16 +260,16 @@ export default function ServicesPage() {
                         </p>
 
                         <p className="mt-1 text-[10px] text-zinc-800">
-                            {
-                                service.requestRate
-                            }
+                            {service.requestRate}
                         </p>
                     </div>
                 ),
             },
+
             {
                 key: "latency",
                 header: "Latency",
+
                 render: (service) => (
                     <div>
                         <p className="font-mono text-xs text-zinc-500">
@@ -224,72 +282,79 @@ export default function ServicesPage() {
                     </div>
                 ),
             },
+
             {
                 key: "errors",
                 header: "Errors",
+
                 render: (service) => (
                     <span
-                        className={`font-mono text-xs ${
-                            service.errorRate ===
-                                "0.01%" ||
-                            service.errorRate ===
-                                "0.03%" ||
-                            service.errorRate ===
-                                "0.08%"
-                                ? "text-emerald-600"
-                                : service.errorRate ===
-                                    "2.84%"
-                                  ? "text-red-400"
-                                  : "text-zinc-500"
-                        }`}
+                        className={`font-mono text-xs ${service.errorRate ===
+                            "0.00%"
+                            ? "text-emerald-600"
+                            : service.status ===
+                                "Down"
+                                ? "text-red-400"
+                                : service.status ===
+                                    "Degraded"
+                                    ? "text-amber-500"
+                                    : "text-zinc-500"
+                            }`}
                     >
                         {service.errorRate}
                     </span>
                 ),
             },
+
             {
                 key: "uptime",
                 header: "Uptime",
+
                 render: (service) => (
                     <span className="font-mono text-xs text-zinc-500">
                         {service.uptime}
                     </span>
                 ),
             },
+
             {
                 key: "trend",
                 header: "Trend",
+
                 render: (service) => (
                     <div className="flex items-center gap-1.5">
-                        {service.trend ===
-                        "up" ? (
+                        {service.trend === "up" ? (
                             <ArrowUpRight className="h-3.5 w-3.5 text-emerald-500" />
-                        ) : (
+                        ) : service.trend === "down" ? (
                             <ArrowDownRight className="h-3.5 w-3.5 text-red-400" />
+                        ) : (
+                            <ArrowRight className="h-3.5 w-3.5 text-zinc-600" />
                         )}
 
                         <span
-                            className={`text-[11px] ${
-                                service.trend ===
-                                "up"
+                            className={`text-[11px] ${service.trend === "up"
                                     ? "text-emerald-500"
-                                    : "text-red-400"
-                            }`}
+                                    : service.trend === "down"
+                                        ? "text-red-400"
+                                        : "text-zinc-600"
+                                }`}
                         >
-                            {
-                                service.trendValue
-                            }
+                            {service.trendValue}
                         </span>
                     </div>
                 ),
             },
+
             {
                 key: "action",
                 header: "",
                 mobileLabel: "Open",
+
                 render: (service) => (
                     <Link
-                        href={`/dashboard/services/${service.name}`}
+                        href={`/dashboard/services/${encodeURIComponent(
+                            service.name,
+                        )}`}
                         onClick={(event) =>
                             event.stopPropagation()
                         }
@@ -316,6 +381,7 @@ export default function ServicesPage() {
             <main>
                 <div>
                     {/* Header */}
+
                     <div className="mb-7">
                         <div className="mb-2 flex items-center gap-2 text-xs text-zinc-600">
                             <Server className="h-3.5 w-3.5" />
@@ -352,53 +418,104 @@ export default function ServicesPage() {
                                     </span>
                                 </div>
 
-                                <button
-                                    type="button"
-                                    className="flex h-9 items-center gap-2 rounded-lg border border-zinc-900 bg-zinc-950 px-3 text-xs text-zinc-500 transition-colors hover:border-zinc-800 hover:text-zinc-300"
-                                >
-                                    <Clock3 className="h-3.5 w-3.5" />
+                                <div className="relative">
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            setShowTimeRangeMenu(
+                                                (current) => !current,
+                                            )
+                                        }
+                                        aria-haspopup="menu"
+                                        aria-expanded={showTimeRangeMenu}
+                                        className="flex h-9 items-center gap-2 rounded-lg border border-zinc-900 bg-zinc-950 px-3 text-xs text-zinc-500 transition-colors hover:border-zinc-800 hover:text-zinc-300"
+                                    >
+                                        <Clock3 className="h-3.5 w-3.5" />
+                                        <span>{TIME_RANGES[timeRange].label}</span>
+                                        <ArrowDownRight
+                                            className={`h-3 w-3 transition-transform ${
+                                                showTimeRangeMenu ? "rotate-180" : ""
+                                            }`}
+                                        />
+                                    </button>
 
-                                    Last 24 hours
-                                </button>
+                                    {showTimeRangeMenu && (
+                                        <div
+                                            role="menu"
+                                            className="absolute right-0 top-11 z-30 min-w-[170px] overflow-hidden rounded-lg border border-zinc-900 bg-zinc-950 p-1 shadow-2xl shadow-black/40"
+                                        >
+                                            {(Object.entries(TIME_RANGES) as [
+                                                TimeRange,
+                                                { label: string; durationMs: number },
+                                            ][]).map(([value, range]) => (
+                                                <button
+                                                    key={value}
+                                                    type="button"
+                                                    role="menuitem"
+                                                    onClick={() => {
+                                                        setTimeRange(value);
+                                                        setShowTimeRangeMenu(false);
+                                                    }}
+                                                    className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-xs transition-colors ${
+                                                        timeRange === value
+                                                            ? "bg-zinc-900 text-zinc-200"
+                                                            : "text-zinc-500 hover:bg-zinc-900 hover:text-zinc-300"
+                                                    }`}
+                                                >
+                                                    <span>{range.label}</span>
+                                                    {timeRange === value && (
+                                                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                                                    )}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </div>
 
                     {/* Overview */}
+
                     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                         <OverviewCard
                             icon={Server}
                             label="Total services"
-                            value="6"
-                            detail="5 healthy"
+                            value={totalServices.toLocaleString()}
+                            detail={`${healthyServices} healthy`}
                         />
 
                         <OverviewCard
                             icon={Activity}
-                            label="Request rate"
-                            value="61.8 req/s"
-                            detail="+9.4%"
-                            positive
+                            label="Requests"
+                            value={totalRequests.toLocaleString()}
+                            detail="total requests"
                         />
 
                         <OverviewCard
                             icon={Clock3}
                             label="P95 latency"
-                            value="384ms"
-                            detail="-6.8%"
-                            positive
+                            value={`${Math.round(
+                                overallP95Latency,
+                            )}ms`}
+                            detail="highest service P95"
                         />
 
                         <OverviewCard
                             icon={TriangleAlert}
                             label="Error rate"
-                            value="0.42%"
-                            detail="-14.2%"
-                            positive
+                            value={`${overallErrorRate.toFixed(
+                                2,
+                            )}%`}
+                            detail={`${totalErrors.toLocaleString()} errors`}
+                            positive={
+                                overallErrorRate < 1
+                            }
                         />
                     </div>
 
                     {/* Toolbar */}
+
                     <div className="mt-6 flex flex-col gap-3 sm:flex-row">
                         <div className="relative flex-1">
                             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-700" />
@@ -407,11 +524,12 @@ export default function ServicesPage() {
                                 value={search}
                                 onChange={(
                                     event,
-                                ) => {
+                                ) =>
                                     setSearch(
-                                        event.target.value,
-                                    );
-                                }}
+                                        event.target
+                                            .value,
+                                    )
+                                }
                                 placeholder="Search services..."
                                 className="
                                     h-10 w-full
@@ -501,9 +619,7 @@ export default function ServicesPage() {
                                 type="button"
                                 onClick={() =>
                                     setShowFilters(
-                                        (
-                                            current,
-                                        ) =>
+                                        (current) =>
                                             !current,
                                     )
                                 }
@@ -515,10 +631,9 @@ export default function ServicesPage() {
                                     rounded-lg
                                     border
                                     transition-colors
-                                    ${
-                                        showFilters
-                                            ? "border-zinc-700 bg-zinc-900 text-zinc-300"
-                                            : "border-zinc-900 bg-zinc-950 text-zinc-600 hover:border-zinc-800 hover:text-zinc-300"
+                                    ${showFilters
+                                        ? "border-zinc-700 bg-zinc-900 text-zinc-300"
+                                        : "border-zinc-900 bg-zinc-950 text-zinc-600 hover:border-zinc-800 hover:text-zinc-300"
                                     }
                                 `}
                                 aria-label="More filters"
@@ -529,6 +644,7 @@ export default function ServicesPage() {
                     </div>
 
                     {/* Extra filters */}
+
                     {showFilters && (
                         <div className="mt-3 flex flex-col gap-3 rounded-xl border border-zinc-900 bg-zinc-950 p-4 sm:flex-row sm:items-center sm:justify-between">
                             <div className="flex items-center gap-2">
@@ -538,7 +654,7 @@ export default function ServicesPage() {
 
                                 <span className="rounded-md border border-zinc-900 bg-black px-2.5 py-1.5 text-[10px] text-zinc-500">
                                     {statusFilter ===
-                                    "All"
+                                        "All"
                                         ? "All services"
                                         : statusFilter}
                                 </span>
@@ -557,13 +673,16 @@ export default function ServicesPage() {
                             </div>
 
                             <span className="text-[10px] text-zinc-800">
-                                {filteredServices.length}{" "}
+                                {
+                                    filteredServices.length
+                                }{" "}
                                 matching services
                             </span>
                         </div>
                     )}
 
                     {/* Services table */}
+
                     <section className="mt-4 overflow-hidden rounded-xl border border-zinc-900 bg-zinc-950">
                         <div className="flex flex-col gap-3 border-b border-zinc-900 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                             <div>
@@ -581,12 +700,85 @@ export default function ServicesPage() {
                             </div>
 
                             <span className="text-[10px] text-zinc-800">
-                                Updated just now
+                                {isLoading
+                                    ? "Updating..."
+                                    : "Updated just now"}
                             </span>
                         </div>
 
-                        {filteredServices.length >
-                        0 ? (
+                        {isLoading ? (
+                            <div className="flex min-h-[320px] flex-col items-center justify-center px-5 text-center">
+                                <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-zinc-900 bg-black">
+                                    <Activity className="h-4 w-4 animate-pulse text-zinc-700" />
+                                </div>
+
+                                <h3 className="mt-4 text-sm font-medium text-zinc-400">
+                                    Loading services
+                                </h3>
+
+                                <p className="mt-1 text-xs text-zinc-700">
+                                    Fetching service telemetry...
+                                </p>
+                            </div>
+                        ) : error ? (
+                            <div className="flex min-h-[320px] flex-col items-center justify-center px-5 text-center">
+                                <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-zinc-900 bg-black">
+                                    <TriangleAlert className="h-4 w-4 text-red-400" />
+                                </div>
+
+                                <h3 className="mt-4 text-sm font-medium text-zinc-400">
+                                    Failed to load services
+                                </h3>
+
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        const projectId =
+                                            selectedProject?.id;
+
+                                        if (
+                                            projectId &&
+                                            authStatus ===
+                                            "authenticated"
+                                        ) {
+                                            const endTime =
+                                                new Date();
+                                            const startTime =
+                                                new Date(
+                                                    endTime.getTime() -
+                                                        TIME_RANGES[
+                                                            timeRange
+                                                        ].durationMs,
+                                                );
+
+                                            fetchServices(
+                                                projectId,
+                                                {
+                                                    startTime:
+                                                        startTime.toISOString(),
+                                                    endTime:
+                                                        endTime.toISOString(),
+                                                },
+                                            );
+                                        }
+                                    }}
+                                    className="
+                                        mt-5
+                                        rounded-lg
+                                        border border-zinc-800
+                                        bg-zinc-950
+                                        px-3 py-2
+                                        text-xs text-zinc-500
+                                        transition-colors
+                                        hover:bg-zinc-900
+                                        hover:text-zinc-300
+                                    "
+                                >
+                                    Try again
+                                </button>
+                            </div>
+                        ) : filteredServices.length >
+                            0 ? (
                             <ResponsiveDataTable
                                 data={
                                     filteredServices
@@ -603,7 +795,9 @@ export default function ServicesPage() {
                                     service,
                                 ) => {
                                     window.location.href =
-                                        `/dashboard/services/${service.name}`;
+                                        `/dashboard/services/${encodeURIComponent(
+                                            service.name,
+                                        )}`;
                                 }}
                             />
                         ) : (
@@ -617,35 +811,39 @@ export default function ServicesPage() {
                                 </h3>
 
                                 <p className="mt-1 text-xs text-zinc-700">
-                                    Try changing your search or
-                                    status filter.
+                                    {serviceData.length ===
+                                        0
+                                        ? "No OpenTelemetry service data has been received yet."
+                                        : "Try changing your search or status filter."}
                                 </p>
 
-                                <button
-                                    type="button"
-                                    onClick={
-                                        resetFilters
-                                    }
-                                    className="
-                                        mt-5
-                                        rounded-lg
-                                        border border-zinc-800
-                                        bg-zinc-950
-                                        px-3 py-2
-                                        text-xs
-                                        text-zinc-500
-                                        transition-colors
-                                        hover:bg-zinc-900
-                                        hover:text-zinc-300
-                                    "
-                                >
-                                    Clear filters
-                                </button>
+                                {hasActiveFilters && (
+                                    <button
+                                        type="button"
+                                        onClick={
+                                            resetFilters
+                                        }
+                                        className="
+                                            mt-5
+                                            rounded-lg
+                                            border border-zinc-800
+                                            bg-zinc-950
+                                            px-3 py-2
+                                            text-xs text-zinc-500
+                                            transition-colors
+                                            hover:bg-zinc-900
+                                            hover:text-zinc-300
+                                        "
+                                    >
+                                        Clear filters
+                                    </button>
+                                )}
                             </div>
                         )}
                     </section>
 
                     {/* Bottom information */}
+
                     <div className="mt-6 grid gap-4 md:grid-cols-2">
                         <InfoCard
                             icon={Activity}
@@ -662,8 +860,8 @@ export default function ServicesPage() {
 
                     <div className="mt-4 flex flex-col gap-2 text-[10px] text-zinc-800 sm:flex-row sm:items-center sm:justify-between">
                         <span>
-                            Service data is currently displayed
-                            using sample data.
+                            Service data is displayed from
+                            incoming OpenTelemetry telemetry.
                         </span>
 
                         <div className="flex items-center gap-2">
@@ -680,10 +878,7 @@ export default function ServicesPage() {
     );
 }
 
-/* ========================================================================== */
-/* Overview Card                                                              */
-/* ========================================================================== */
-
+// Overview Card
 function OverviewCard({
     icon: Icon,
     label,
@@ -732,10 +927,7 @@ function OverviewCard({
     );
 }
 
-/* ========================================================================== */
-/* Status Badge                                                               */
-/* ========================================================================== */
-
+// Status Badge
 function StatusBadge({
     status,
 }: {
@@ -747,8 +939,10 @@ function StatusBadge({
     > = {
         Healthy:
             "border-emerald-500/10 bg-emerald-500/5 text-emerald-500",
+
         Degraded:
             "border-amber-500/10 bg-amber-500/5 text-amber-500",
+
         Down:
             "border-red-500/10 bg-red-500/5 text-red-400",
     };
@@ -784,10 +978,7 @@ function StatusBadge({
     );
 }
 
-/* ========================================================================== */
-/* Filter Button                                                              */
-/* ========================================================================== */
-
+// Filter Button
 function FilterButton({
     children,
     active,
@@ -809,10 +1000,9 @@ function FilterButton({
                 px-3
                 text-xs
                 transition-colors
-                ${
-                    active
-                        ? "border-zinc-700 bg-zinc-900 text-zinc-200"
-                        : "border-zinc-900 bg-zinc-950 text-zinc-600 hover:border-zinc-800 hover:text-zinc-400"
+                ${active
+                    ? "border-zinc-700 bg-zinc-900 text-zinc-200"
+                    : "border-zinc-900 bg-zinc-950 text-zinc-600 hover:border-zinc-800 hover:text-zinc-400"
                 }
             `}
         >
@@ -821,10 +1011,7 @@ function FilterButton({
     );
 }
 
-/* ========================================================================== */
-/* Info Card                                                                  */
-/* ========================================================================== */
-
+// Info Card
 function InfoCard({
     icon: Icon,
     title,

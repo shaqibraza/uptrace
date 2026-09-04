@@ -17,6 +17,7 @@ import { createHttpEndpointRouter } from "./modules/http-monitoring/routes/http-
 import { createHttpCheckResultRouter } from "./modules/http-monitoring/routes/http-check-result.routes.js";
 import { createProjectApiKeyRouter } from "./modules/projects/routes/project-api-key.routes.js";
 import { createTelemetryRouter } from "./modules/telemetry/routes/telemetry.routes.js";
+import { createServiceRouter } from "./modules/services/routes/service.routes.js";
 
 
 export const app = express();
@@ -59,6 +60,7 @@ app.use("/", createProjectRouter());
 app.use("/", createHttpEndpointRouter());
 app.use("/", createHttpCheckResultRouter());
 app.use("/", createProjectApiKeyRouter());
+app.use(createServiceRouter());
 
 app.get("/health", async (_req, res, next) => {
     try {

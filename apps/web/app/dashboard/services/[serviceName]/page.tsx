@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useParams } from "next/navigation";
 import {
     Activity,
     AlertTriangle,
@@ -24,6 +26,41 @@ import {
     type ResponsiveColumn,
 } from "../../components/ResponsiveDataTable";
 
+import {
+    useServicesStore,
+} from "../../../../stores/services.store";
+
+import {
+    useProjectStore,
+} from "../../../../stores/project.store";
+
+type TimeRange = "1h" | "6h" | "24h" | "7d";
+
+const TIME_RANGES: Record<
+    TimeRange,
+    {
+        label: string;
+        durationMs: number;
+    }
+> = {
+    "1h": {
+        label: "Last 1 hour",
+        durationMs: 60 * 60 * 1000,
+    },
+    "6h": {
+        label: "Last 6 hours",
+        durationMs: 6 * 60 * 60 * 1000,
+    },
+    "24h": {
+        label: "Last 24 hours",
+        durationMs: 24 * 60 * 60 * 1000,
+    },
+    "7d": {
+        label: "Last 7 days",
+        durationMs: 7 * 24 * 60 * 60 * 1000,
+    },
+};
+
 type Endpoint = {
     name: string;
     requests: string;
@@ -36,135 +73,160 @@ type Trace = {
     id: string;
     operation: string;
     duration: string;
-    status: "OK" | "Error";
+    status: "OK" | "Error" | "Unset";
     time: string;
 };
 
-type Dependency = {
-    name: string;
-    type: "Database" | "Cache" | "Service";
-    latency: string;
-    requests: string;
-    status: "Healthy" | "Degraded";
-};
+function formatNumber(
+    value: number,
+    maximumFractionDigits = 2,
+): string {
+    return new Intl.NumberFormat("en-US", {
+        maximumFractionDigits,
+    }).format(value);
+}
 
-const requestData = [
-    42, 48, 45, 52, 49, 58, 63, 59, 67, 61,
-    72, 68, 76, 71, 82, 78, 88, 81, 91, 86,
-    95, 89, 101, 96, 108, 102, 111, 106, 116, 109,
-];
+function formatCompactNumber(
+    value: number,
+): string {
+    if (value >= 1_000_000) {
+        return `${formatNumber(value / 1_000_000, 1)}M`;
+    }
 
-const latencyData = [
-    82, 91, 87, 96, 104, 92, 111, 105, 119, 108,
-    127, 116, 134, 122, 141, 131, 148, 136, 153, 143,
-    161, 149, 171, 158, 176, 164, 182, 169, 177, 162,
-];
+    if (value >= 1_000) {
+        return `${formatNumber(value / 1_000, 1)}K`;
+    }
 
-const errorData = [
-    2, 3, 2, 4, 3, 5, 4, 3, 6, 5,
-    4, 7, 5, 6, 8, 5, 7, 6, 9, 7,
-    6, 8, 5, 7, 6, 5, 4, 5, 3, 4,
-];
+    return formatNumber(value, 0);
+}
 
-const endpoints: Endpoint[] = [
-    {
-        name: "GET /projects",
-        requests: "342K",
-        latency: "84ms",
-        errors: "0.08%",
-        trend: "+4.2%",
-    },
-    {
-        name: "GET /projects/:id",
-        requests: "281K",
-        latency: "112ms",
-        errors: "0.14%",
-        trend: "+8.1%",
-    },
-    {
-        name: "POST /v1/traces",
-        requests: "192K",
-        latency: "391ms",
-        errors: "0.82%",
-        trend: "-3.4%",
-    },
-    {
-        name: "GET /dashboard",
-        requests: "143K",
-        latency: "76ms",
-        errors: "0.04%",
-        trend: "+2.7%",
-    },
-    {
-        name: "GET /organizations",
-        requests: "91K",
-        latency: "64ms",
-        errors: "0.02%",
-        trend: "+1.3%",
-    },
-];
+function formatRate(
+    value: number,
+): string {
+    if (value >= 1000) {
+        return `${formatNumber(value, 1)} req/s`;
+    }
 
-const traces: Trace[] = [
-    {
-        id: "trace-001",
-        operation: "GET /projects",
-        duration: "84ms",
-        status: "OK",
-        time: "12 sec ago",
-    },
-    {
-        id: "trace-002",
-        operation: "POST /v1/traces",
-        duration: "391ms",
-        status: "OK",
-        time: "28 sec ago",
-    },
-    {
-        id: "trace-003",
-        operation: "GET /projects/:id",
-        duration: "112ms",
-        status: "OK",
-        time: "41 sec ago",
-    },
-    {
-        id: "trace-004",
-        operation: "POST /v1/traces",
-        duration: "642ms",
-        status: "Error",
-        time: "1 min ago",
-    },
-    {
-        id: "trace-005",
-        operation: "GET /dashboard",
-        duration: "76ms",
-        status: "OK",
-        time: "2 min ago",
-    },
-];
+    if (value >= 100) {
+        return `${formatNumber(value, 1)} req/s`;
+    }
 
-const dependencies: Dependency[] = [
-    {
-        name: "postgres",
-        type: "Database",
-        latency: "18ms",
-        requests: "1.2K/s",
-        status: "Healthy",
-    },
-    {
-        name: "redis",
-        type: "Cache",
-        latency: "4ms",
-        requests: "846/s",
-        status: "Healthy",
-    },
-    {
-        name: "auth-service",
-        type: "Service",
-        latency: "218ms",
-        requests: "3.1/s",
-        status: "Degraded",
-    },
-];
+    return `${formatNumber(value, 2)} req/s`;
+}
+
+function formatLatency(
+    value: number,
+): string {
+    if (value < 1000) {
+        return `${formatNumber(value, 0)}ms`;
+    }
+
+    return `${formatNumber(value / 1000, 2)}s`;
+}
+
+function formatPercentage(
+    value: number,
+): string {
+    return `${formatNumber(value, 2)}%`;
+}
+
+function formatRelativeTime(
+    value: string | Date,
+): string {
+    const date =
+        value instanceof Date
+            ? value
+            : new Date(value);
+
+    const diff =
+        Date.now() - date.getTime();
+
+    if (diff < 0) {
+        return "just now";
+    }
+
+    const seconds =
+        Math.floor(diff / 1000);
+
+    if (seconds < 10) {
+        return "just now";
+    }
+
+    if (seconds < 60) {
+        return `${seconds}s ago`;
+    }
+
+    const minutes =
+        Math.floor(seconds / 60);
+
+    if (minutes < 60) {
+        return `${minutes}m ago`;
+    }
+
+    const hours =
+        Math.floor(minutes / 60);
+
+    if (hours < 24) {
+        return `${hours}h ago`;
+    }
+
+    const days =
+        Math.floor(hours / 24);
+
+    return `${days}d ago`;
+}
+
+function getChartValues(
+    values: number[],
+): number[] {
+    if (values.length === 0) {
+        return [0];
+    }
+
+    return values;
+}
+
+function getTrendText(
+    trend: "up" | "down" | "flat",
+    value: number,
+): string {
+    if (trend === "flat") {
+        return "0.0%";
+    }
+
+    const prefix =
+        value >= 0 ? "+" : "";
+
+    return `${prefix}${formatNumber(
+        value,
+        1,
+    )}%`;
+}
+
+function getTrendPositive(
+    trend: "up" | "down" | "flat",
+): boolean {
+    return trend === "up";
+}
+
+function getHealthState(
+    errorRate: number,
+    requestCount: number,
+): "Healthy" | "Degraded" | "Down" {
+    if (requestCount === 0) {
+        return "Down";
+    }
+
+    if (errorRate >= 5) {
+        return "Down";
+    }
+
+    if (errorRate >= 1) {
+        return "Degraded";
+    }
+
+    return "Healthy";
+}
 
 const endpointColumns: ResponsiveColumn<Endpoint>[] = [
     {
@@ -204,32 +266,42 @@ const endpointColumns: ResponsiveColumn<Endpoint>[] = [
     {
         key: "errors",
         header: "Errors",
-        render: (endpoint) => (
-            <span
-                className={`font-mono text-xs ${
-                    endpoint.errors === "0.82%"
-                        ? "text-amber-500"
-                        : "text-zinc-600"
-                }`}
-            >
-                {endpoint.errors}
-            </span>
-        ),
+        render: (endpoint) => {
+            const numericError =
+                Number.parseFloat(
+                    endpoint.errors,
+                );
+
+            return (
+                <span
+                    className={`font-mono text-xs ${numericError >= 1
+                            ? "text-amber-500"
+                            : "text-zinc-600"
+                        }`}
+                >
+                    {endpoint.errors}
+                </span>
+            );
+        },
     },
     {
         key: "trend",
         header: "Trend",
         render: (endpoint) => {
+            const numericTrend =
+                Number.parseFloat(
+                    endpoint.trend,
+                );
+
             const positive =
-                endpoint.trend.startsWith("+");
+                numericTrend >= 0;
 
             return (
                 <span
-                    className={`flex items-center gap-1 text-[11px] ${
-                        positive
+                    className={`flex items-center gap-1 text-[11px] ${positive
                             ? "text-emerald-500"
                             : "text-red-400"
-                    }`}
+                        }`}
                 >
                     {positive ? (
                         <ArrowUpRight className="h-3 w-3" />
@@ -245,6 +317,350 @@ const endpointColumns: ResponsiveColumn<Endpoint>[] = [
 ];
 
 export default function ServiceDetailPage() {
+    const params = useParams();
+
+    const selectedProject =
+        useProjectStore(
+            (state) =>
+                state.selectedProject,
+        );
+
+    const projectId =
+        selectedProject?.id ?? "";
+
+    const {
+        serviceDetail,
+        isDetailLoading,
+        detailError,
+        fetchServiceDetail,
+        clearServiceDetail,
+    } = useServicesStore();
+
+    const rawServiceName =
+        Array.isArray(params.serviceName)
+            ? params.serviceName[0]
+            : params.serviceName;
+
+    const serviceName = rawServiceName
+        ? decodeURIComponent(rawServiceName)
+        : "";
+
+    const [timeRange, setTimeRange] =
+        useState<TimeRange>("24h");
+
+    const [endpointPage, setEndpointPage] =
+        useState(1);
+
+    const [tracePage, setTracePage] =
+        useState(1);
+
+    const [
+        showTimeRangeMenu,
+        setShowTimeRangeMenu,
+    ] = useState(false);
+
+    useEffect(() => {
+        if (!projectId || !serviceName) {
+            clearServiceDetail();
+            return;
+        }
+
+        const selectedRange =
+            TIME_RANGES[timeRange];
+
+        const endTime = new Date();
+
+        const startTime = new Date(
+            endTime.getTime() -
+            selectedRange.durationMs,
+        );
+
+        setEndpointPage(1);
+        setTracePage(1);
+
+        void fetchServiceDetail(
+            projectId,
+            serviceName,
+            {
+                startTime:
+                    startTime.toISOString(),
+                endTime:
+                    endTime.toISOString(),
+            },
+        );
+    }, [
+        projectId,
+        serviceName,
+        timeRange,
+        fetchServiceDetail,
+        clearServiceDetail,
+    ]);
+
+    const service =
+        serviceDetail;
+
+    const timeSeries =
+        service?.timeSeries ?? [];
+
+    const requestData =
+        useMemo(
+            () =>
+                getChartValues(
+                    timeSeries.map(
+                        (point) =>
+                            point.requestRate,
+                    ),
+                ),
+            [timeSeries],
+        );
+
+    const latencyData =
+        useMemo(
+            () =>
+                getChartValues(
+                    timeSeries.map(
+                        (point) =>
+                            point.averageLatencyMs,
+                    ),
+                ),
+            [timeSeries],
+        );
+
+    const errorData =
+        useMemo(
+            () =>
+                getChartValues(
+                    timeSeries.map(
+                        (point) =>
+                            point.errorRate,
+                    ),
+                ),
+            [timeSeries],
+        );
+
+    const endpoints =
+        useMemo<Endpoint[]>(
+            () =>
+                (service?.operations ?? []).map(
+                    (operation) => ({
+                        name:
+                            operation.name,
+
+                        requests:
+                            formatCompactNumber(
+                                operation.requestCount,
+                            ),
+
+                        latency:
+                            formatLatency(
+                                operation.p95LatencyMs,
+                            ),
+
+                        errors:
+                            formatPercentage(
+                                operation.errorRate,
+                            ),
+
+                        // Operation trend is not currently
+                        // returned by the backend.
+                        trend: "0.0%",
+                    }),
+                ),
+            [service],
+        );
+
+    const traces =
+        useMemo<Trace[]>(
+            () =>
+                (
+                    service?.recentTraces ??
+                    []
+                ).map((trace) => ({
+                    id:
+                        trace.traceId,
+
+                    operation:
+                        trace.operationName,
+
+                    duration:
+                        formatLatency(
+                            trace.durationMs,
+                        ),
+
+                    status:
+                        trace.status ===
+                            "OK"
+                            ? "OK"
+                            : trace.status ===
+                                "ERROR"
+                                ? "Error"
+                                : "Unset",
+
+                    time:
+                        formatRelativeTime(
+                            trace.startTime,
+                        ),
+                })),
+            [service],
+        );
+
+    const ENDPOINTS_PER_PAGE = 5;
+    const TRACES_PER_PAGE = 10;
+
+    const endpointPageCount = Math.max(
+        1,
+        Math.ceil(endpoints.length / ENDPOINTS_PER_PAGE),
+    );
+
+    const tracePageCount = Math.max(
+        1,
+        Math.ceil(traces.length / TRACES_PER_PAGE),
+    );
+
+    const paginatedEndpoints = endpoints.slice(
+        (endpointPage - 1) * ENDPOINTS_PER_PAGE,
+        endpointPage * ENDPOINTS_PER_PAGE,
+    );
+
+    const paginatedTraces = traces.slice(
+        (tracePage - 1) * TRACES_PER_PAGE,
+        tracePage * TRACES_PER_PAGE,
+    );
+
+    const health = service
+        ? getHealthState(
+            service.errorRate,
+            service.requestCount,
+        )
+        : "Down";
+
+    const trendPositive =
+        service
+            ? getTrendPositive(
+                service.trend,
+            )
+            : false;
+
+    const trendText =
+        service
+            ? getTrendText(
+                service.trend,
+                service.trendValue,
+            )
+            : "0.0%";
+
+    const selectedRangeLabel =
+        TIME_RANGES[timeRange].label;
+
+    if (!projectId) {
+        return (
+            <div className="p-6">
+                <EmptyState
+                    title="No project selected"
+                    description="Select a project to view service telemetry."
+                />
+            </div>
+        );
+    }
+
+    if (
+        isDetailLoading &&
+        !service
+    ) {
+        return (
+            <div className="p-6">
+                <div className="mb-6">
+                    <Link
+                        href="/dashboard/services"
+                        className="inline-flex items-center gap-2 text-xs text-zinc-600 transition-colors hover:text-zinc-300"
+                    >
+                        <ArrowLeft className="h-3.5 w-3.5" />
+                        Back to services
+                    </Link>
+                </div>
+
+                <LoadingState />
+            </div>
+        );
+    }
+
+    if (detailError && !service) {
+        return (
+            <div className="p-6">
+                <div className="mb-6">
+                    <Link
+                        href="/dashboard/services"
+                        className="inline-flex items-center gap-2 text-xs text-zinc-600 transition-colors hover:text-zinc-300"
+                    >
+                        <ArrowLeft className="h-3.5 w-3.5" />
+                        Back to services
+                    </Link>
+                </div>
+
+                <EmptyState
+                    title="Unable to load service"
+                    description={detailError}
+                    action={
+                        projectId &&
+                            serviceName ? (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    const endTime =
+                                        new Date();
+
+                                    const startTime =
+                                        new Date(
+                                            endTime.getTime() -
+                                            TIME_RANGES[
+                                                timeRange
+                                            ]
+                                                .durationMs,
+                                        );
+
+                                    void fetchServiceDetail(
+                                        projectId,
+                                        serviceName,
+                                        {
+                                            startTime:
+                                                startTime.toISOString(),
+                                            endTime:
+                                                endTime.toISOString(),
+                                        },
+                                    );
+                                }}
+                                className="rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-xs text-zinc-400 transition-colors hover:border-zinc-700 hover:text-zinc-200"
+                            >
+                                Retry
+                            </button>
+                        ) : undefined
+                    }
+                />
+            </div>
+        );
+    }
+
+    if (!service) {
+        return (
+            <div className="p-6">
+                <div className="mb-6">
+                    <Link
+                        href="/dashboard/services"
+                        className="inline-flex items-center gap-2 text-xs text-zinc-600 transition-colors hover:text-zinc-300"
+                    >
+                        <ArrowLeft className="h-3.5 w-3.5" />
+                        Back to services
+                    </Link>
+                </div>
+
+                <EmptyState
+                    title="Service not found"
+                    description={`No telemetry was found for "${serviceName}".`}
+                />
+            </div>
+        );
+    }
+
     return (
         <div>
             <main>
@@ -255,7 +671,6 @@ export default function ServiceDetailPage() {
                         className="mb-6 inline-flex items-center gap-2 text-xs text-zinc-600 transition-colors hover:text-zinc-300"
                     >
                         <ArrowLeft className="h-3.5 w-3.5" />
-
                         Back to services
                     </Link>
 
@@ -270,79 +685,205 @@ export default function ServiceDetailPage() {
                                 <div>
                                     <div className="flex flex-wrap items-center gap-3">
                                         <h1 className="text-2xl font-semibold tracking-tight text-zinc-100">
-                                            uptrace-api
+                                            {service.name}
                                         </h1>
 
-                                        <span className="inline-flex items-center gap-1.5 rounded-md border border-emerald-500/10 bg-emerald-500/5 px-2 py-1 text-[10px] text-emerald-500">
-                                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                                        <span
+                                            className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[10px] ${health ===
+                                                    "Healthy"
+                                                    ? "border-emerald-500/10 bg-emerald-500/5 text-emerald-500"
+                                                    : health ===
+                                                        "Degraded"
+                                                        ? "border-amber-500/10 bg-amber-500/5 text-amber-500"
+                                                        : "border-red-500/10 bg-red-500/5 text-red-400"
+                                                }`}
+                                        >
+                                            <span
+                                                className={`h-1.5 w-1.5 rounded-full ${health ===
+                                                        "Healthy"
+                                                        ? "bg-emerald-500"
+                                                        : health ===
+                                                            "Degraded"
+                                                            ? "bg-amber-500"
+                                                            : "bg-red-400"
+                                                    }`}
+                                            />
 
-                                            Healthy
+                                            {health}
                                         </span>
                                     </div>
 
                                     <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-zinc-700">
-                                        <span>production</span>
-                                        <span>3 instances</span>
-                                        <span>Node.js</span>
-                                        <span>v20.11.0</span>
+                                        <span>
+                                            OTEL
+                                        </span>
+
+                                        <span>
+                                            {service.requestCount ===
+                                                0
+                                                ? "No traffic"
+                                                : `${formatCompactNumber(
+                                                    service.requestCount,
+                                                )} requests`}
+                                        </span>
+
+                                        <span>
+                                            Last seen{" "}
+                                            {service.lastSeenAt
+                                                ? formatRelativeTime(
+                                                    service.lastSeenAt,
+                                                )
+                                                : "never"}
+                                        </span>
                                     </div>
                                 </div>
                             </div>
 
                             <div className="flex flex-wrap items-center gap-2">
-                                <button
-                                    type="button"
-                                    className="flex h-9 items-center gap-2 rounded-lg border border-zinc-900 bg-zinc-950 px-3 text-xs text-zinc-500 transition-colors hover:border-zinc-800 hover:text-zinc-300"
-                                >
-                                    Last 24 hours
+                                <div className="relative">
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            setShowTimeRangeMenu(
+                                                (value) =>
+                                                    !value,
+                                            )
+                                        }
+                                        className="flex h-9 items-center gap-2 rounded-lg border border-zinc-900 bg-zinc-950 px-3 text-xs text-zinc-500 transition-colors hover:border-zinc-800 hover:text-zinc-300"
+                                    >
+                                        {
+                                            selectedRangeLabel
+                                        }
 
-                                    <ChevronDown className="h-3.5 w-3.5" />
-                                </button>
+                                        <ChevronDown className="h-3.5 w-3.5" />
+                                    </button>
+
+                                    {showTimeRangeMenu && (
+                                        <div className="absolute right-0 z-30 mt-2 min-w-44 overflow-hidden rounded-lg border border-zinc-900 bg-zinc-950 p-1 shadow-xl">
+                                            {(
+                                                Object.entries(
+                                                    TIME_RANGES,
+                                                ) as [
+                                                    TimeRange,
+                                                    {
+                                                        label: string;
+                                                        durationMs: number;
+                                                    },
+                                                ][]
+                                            ).map(
+                                                ([
+                                                    key,
+                                                    range,
+                                                ]) => (
+                                                    <button
+                                                        key={
+                                                            key
+                                                        }
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setTimeRange(
+                                                                key,
+                                                            );
+
+                                                            setShowTimeRangeMenu(
+                                                                false,
+                                                            );
+                                                        }}
+                                                        className={`flex w-full items-center rounded-md px-3 py-2 text-left text-xs transition-colors ${timeRange ===
+                                                                key
+                                                                ? "bg-zinc-900 text-zinc-200"
+                                                                : "text-zinc-600 hover:bg-zinc-900/60 hover:text-zinc-300"
+                                                            }`}
+                                                    >
+                                                        {
+                                                            range.label
+                                                        }
+                                                    </button>
+                                                ),
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
 
                                 <Link
                                     href="/dashboard/traces"
                                     className="flex h-9 items-center gap-2 rounded-lg border border-zinc-900 bg-zinc-950 px-3 text-xs text-zinc-500 transition-colors hover:border-zinc-800 hover:text-zinc-300"
                                 >
                                     <ExternalLink className="h-3.5 w-3.5" />
-
                                     Open traces
                                 </Link>
                             </div>
                         </div>
                     </div>
 
+                    {/* Refresh indicator */}
+                    {isDetailLoading && (
+                        <div className="mb-4 flex items-center gap-2 text-[10px] text-zinc-700">
+                            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-zinc-500" />
+                            Updating telemetry...
+                        </div>
+                    )}
+
                     {/* Metrics */}
                     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                         <MetricCard
                             icon={Activity}
                             label="Request rate"
-                            value="28.6 req/s"
-                            change="+12.4%"
-                            positive
+                            value={formatRate(
+                                service.requestRate,
+                            )}
+                            change={trendText}
+                            positive={
+                                trendPositive
+                            }
                         />
 
                         <MetricCard
                             icon={Clock3}
                             label="P95 latency"
-                            value="384ms"
-                            change="-8.7%"
+                            value={formatLatency(
+                                service.p95LatencyMs,
+                            )}
+                            change="Current period"
                             positive
                         />
 
                         <MetricCard
                             icon={TriangleAlert}
                             label="Error rate"
-                            value="0.12%"
-                            change="-18.2%"
-                            positive
+                            value={formatPercentage(
+                                service.errorRate,
+                            )}
+                            change={
+                                service.errorCount ===
+                                    0
+                                    ? "No errors"
+                                    : `${formatCompactNumber(
+                                        service.errorCount,
+                                    )} errors`
+                            }
+                            positive={
+                                service.errorRate <
+                                1
+                            }
                         />
 
                         <MetricCard
                             icon={Server}
-                            label="Instances"
-                            value="3"
-                            change="All healthy"
-                            positive
+                            label="Telemetry uptime"
+                            value={formatPercentage(
+                                service.uptime,
+                            )}
+                            change={
+                                service.requestCount >
+                                    0
+                                    ? "Based on spans"
+                                    : "No traffic"
+                            }
+                            positive={
+                                service.uptime >=
+                                99
+                            }
                         />
                     </div>
 
@@ -351,15 +892,21 @@ export default function ServiceDetailPage() {
                         <ChartCard
                             title="Request rate"
                             subtitle="Requests per second"
-                            value="28.6 req/s"
+                            value={formatRate(
+                                service.requestRate,
+                            )}
                             data={requestData}
+                            timeRange={timeRange}
                         />
 
                         <ChartCard
                             title="Latency"
-                            subtitle="P95 response time"
-                            value="384ms"
+                            subtitle="Average response time"
+                            value={formatLatency(
+                                service.averageLatencyMs,
+                            )}
                             data={latencyData}
+                            timeRange={timeRange}
                         />
                     </div>
 
@@ -377,14 +924,22 @@ export default function ServiceDetailPage() {
                             </div>
 
                             <span className="font-mono text-xs text-zinc-500">
-                                0.12%
+                                {formatPercentage(
+                                    service.errorRate,
+                                )}
                             </span>
                         </div>
 
                         <div className="p-5">
-                            <MiniLineChart data={errorData} />
+                            <MiniLineChart
+                                data={errorData}
+                            />
 
-                            <ChartLabels />
+                            <ChartLabels
+                                timeRange={
+                                    timeRange
+                                }
+                            />
                         </div>
                     </section>
 
@@ -406,13 +961,41 @@ export default function ServiceDetailPage() {
                                 <GitBranch className="h-4 w-4 text-zinc-700" />
                             </div>
 
-                            <ResponsiveDataTable
-                                data={endpoints}
-                                columns={endpointColumns}
-                                rowKey={(endpoint) =>
-                                    endpoint.name
-                                }
-                            />
+                            {endpoints.length > 0 ? (
+                                <>
+                                    <ResponsiveDataTable
+                                        data={
+                                            paginatedEndpoints
+                                        }
+                                        columns={
+                                            endpointColumns
+                                        }
+                                        rowKey={(
+                                            endpoint,
+                                        ) =>
+                                            endpoint.name
+                                        }
+                                    />
+
+                                    {endpointPageCount > 1 && (
+                                        <Pagination
+                                            currentPage={endpointPage}
+                                            totalPages={endpointPageCount}
+                                            onPageChange={setEndpointPage}
+                                            totalItems={endpoints.length}
+                                            pageSize={ENDPOINTS_PER_PAGE}
+                                        />
+                                    )}
+                                </>
+                            ) : (
+                                <EmptySection
+                                    icon={
+                                        GitBranch
+                                    }
+                                    title="No operations"
+                                    description="No operations were recorded for this period."
+                                />
+                            )}
                         </section>
 
                         {/* Dependencies */}
@@ -427,20 +1010,11 @@ export default function ServiceDetailPage() {
                                 </p>
                             </div>
 
-                            <div className="divide-y divide-zinc-900/70">
-                                {dependencies.map(
-                                    (dependency) => (
-                                        <DependencyItem
-                                            key={
-                                                dependency.name
-                                            }
-                                            dependency={
-                                                dependency
-                                            }
-                                        />
-                                    ),
-                                )}
-                            </div>
+                            <EmptySection
+                                icon={Database}
+                                title="Dependency data unavailable"
+                                description="Dependency mapping is not available from the current telemetry schema."
+                            />
                         </section>
                     </div>
 
@@ -467,55 +1041,80 @@ export default function ServiceDetailPage() {
                             </Link>
                         </div>
 
-                        <div className="divide-y divide-zinc-900/70">
-                            {traces.map((trace) => (
-                                <Link
-                                    key={trace.id}
-                                    href="/dashboard/traces"
-                                    className="flex flex-col gap-3 px-5 py-4 transition-colors hover:bg-zinc-900/20 sm:flex-row sm:items-center"
-                                >
-                                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-zinc-900 bg-black">
-                                        {trace.status ===
-                                        "OK" ? (
-                                            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                                        ) : (
-                                            <AlertTriangle className="h-3.5 w-3.5 text-red-400" />
-                                        )}
-                                    </div>
+                        {traces.length > 0 ? (
+                            <>
+                                <div className="divide-y divide-zinc-900/70">
+                                    {paginatedTraces.map(
+                                        (trace) => (
+                                            <Link
+                                                key={trace.id}
+                                                href="/dashboard/traces"
+                                                className="flex flex-col gap-3 px-5 py-4 transition-colors hover:bg-zinc-900/20 sm:flex-row sm:items-center"
+                                            >
+                                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-zinc-900 bg-black">
+                                                    {trace.status === "OK" ? (
+                                                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                                                    ) : trace.status === "Error" ? (
+                                                        <AlertTriangle className="h-3.5 w-3.5 text-red-400" />
+                                                    ) : (
+                                                        <Clock3 className="h-3.5 w-3.5 text-zinc-600" />
+                                                    )}
+                                                </div>
 
-                                    <div className="min-w-0 flex-1">
-                                        <p className="truncate font-mono text-xs text-zinc-400">
-                                            {trace.operation}
-                                        </p>
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="truncate font-mono text-xs text-zinc-400">
+                                                        {trace.operation}
+                                                    </p>
 
-                                        <p className="mt-1 text-[10px] text-zinc-800">
-                                            Trace captured by uptrace-api
-                                        </p>
-                                    </div>
+                                                    <p className="mt-1 truncate font-mono text-[10px] text-zinc-800">
+                                                        {trace.id}
+                                                    </p>
+                                                </div>
 
-                                    <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-                                        <span className="font-mono text-xs text-zinc-600">
-                                            {trace.duration}
-                                        </span>
+                                                <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+                                                    <span className="font-mono text-xs text-zinc-600">
+                                                        {trace.duration}
+                                                    </span>
 
-                                        <span
-                                            className={`text-[10px] ${
-                                                trace.status ===
-                                                "OK"
-                                                    ? "text-emerald-600"
-                                                    : "text-red-400"
-                                            }`}
-                                        >
-                                            {trace.status}
-                                        </span>
+                                                    <span
+                                                        className={`text-[10px] ${
+                                                            trace.status === "OK"
+                                                                ? "text-emerald-600"
+                                                                : trace.status === "Error"
+                                                                    ? "text-red-400"
+                                                                    : "text-zinc-600"
+                                                        }`}
+                                                    >
+                                                        {trace.status}
+                                                    </span>
 
-                                        <span className="text-[10px] text-zinc-800">
-                                            {trace.time}
-                                        </span>
-                                    </div>
-                                </Link>
-                            ))}
-                        </div>
+                                                    <span className="text-[10px] text-zinc-800">
+                                                        {trace.time}
+                                                    </span>
+                                                </div>
+                                            </Link>
+                                        ),
+                                    )}
+                                </div>
+
+                                {tracePageCount > 1 && (
+                                    <Pagination
+                                        currentPage={tracePage}
+                                        totalPages={tracePageCount}
+                                        onPageChange={setTracePage}
+                                        totalItems={traces.length}
+                                        pageSize={TRACES_PER_PAGE}
+                                    />
+                                )}
+                            </>
+                        ) : (
+                            <EmptySection
+                                icon={Activity}
+                                title="No recent traces"
+                                description="No traces were recorded for this service in the selected period."
+                            />
+                        )}
+
                     </section>
 
                     {/* Instances */}
@@ -526,44 +1125,97 @@ export default function ServiceDetailPage() {
                             </h2>
 
                             <p className="mt-1 text-xs text-zinc-700">
-                                Active instances running this service
+                                Runtime instance information
                             </p>
                         </div>
 
-                        <div className="grid gap-px bg-zinc-900 sm:grid-cols-2 xl:grid-cols-3">
-                            <Instance
-                                id="uptrace-api-7f8c9"
-                                region="ap-south-1"
-                                uptime="14d 8h"
-                                cpu="21%"
-                                memory="384MB"
-                            />
-
-                            <Instance
-                                id="uptrace-api-4a2d1"
-                                region="ap-south-1"
-                                uptime="9d 17h"
-                                cpu="18%"
-                                memory="361MB"
-                            />
-
-                            <Instance
-                                id="uptrace-api-91bc4"
-                                region="ap-south-1"
-                                uptime="6d 3h"
-                                cpu="24%"
-                                memory="412MB"
-                            />
-                        </div>
+                        <EmptySection
+                            icon={Server}
+                            title="Instance metrics unavailable"
+                            description="CPU, memory, region and instance-level health are not currently exposed by the backend telemetry API."
+                        />
                     </section>
 
                     <div className="mt-6 flex items-center gap-2 text-[10px] text-zinc-800">
                         <Timer className="h-3 w-3" />
 
-                        Data shown for the selected 24-hour period
+                        Data shown for the selected{" "}
+                        {
+                            TIME_RANGES[
+                                timeRange
+                            ].label.toLowerCase()
+                        }.
                     </div>
                 </div>
             </main>
+        </div>
+    );
+}
+
+/* ========================================================================== */
+/* Pagination                                                                 */
+/* ========================================================================== */
+
+function Pagination({
+    currentPage,
+    totalPages,
+    onPageChange,
+    totalItems,
+    pageSize,
+}: {
+    currentPage: number;
+    totalPages: number;
+    onPageChange: (page: number) => void;
+    totalItems: number;
+    pageSize: number;
+}) {
+    const startItem = (currentPage - 1) * pageSize + 1;
+    const endItem = Math.min(currentPage * pageSize, totalItems);
+
+    return (
+        <div className="flex flex-col gap-3 border-t border-zinc-900 px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-[10px] text-zinc-700">
+                Showing {startItem}-{endItem} of {totalItems}
+            </p>
+
+            <div className="flex items-center gap-1">
+                <button
+                    type="button"
+                    aria-label="Previous page"
+                    disabled={currentPage === 1}
+                    onClick={() => onPageChange(currentPage - 1)}
+                    className="flex h-7 w-7 items-center justify-center rounded-md border border-zinc-900 bg-zinc-950 text-zinc-600 transition-colors hover:border-zinc-800 hover:text-zinc-300 disabled:cursor-not-allowed disabled:opacity-30"
+                >
+                    <ArrowLeft className="h-3 w-3" />
+                </button>
+
+                {Array.from({ length: totalPages }, (_, index) => index + 1).map(
+                    (page) => (
+                        <button
+                            key={page}
+                            type="button"
+                            onClick={() => onPageChange(page)}
+                            className={`flex h-7 min-w-7 items-center justify-center rounded-md border px-2 text-[10px] transition-colors ${
+                                currentPage === page
+                                    ? "border-zinc-700 bg-zinc-900 text-zinc-200"
+                                    : "border-transparent text-zinc-700 hover:border-zinc-900 hover:bg-zinc-950 hover:text-zinc-400"
+                            }`}
+                        >
+                            {page}
+                        </button>
+                    ),
+                )}
+
+                <button
+                    type="button"
+                    aria-label="Next page"
+                    disabled={currentPage === totalPages}
+                    onClick={() => onPageChange(currentPage + 1)}
+                    className="flex h-7 w-7 items-center justify-center rounded-md border border-zinc-900 bg-zinc-950 text-zinc-600 transition-colors hover:border-zinc-800 hover:text-zinc-300 disabled:cursor-not-allowed disabled:opacity-30"
+                >
+                    <ArrowRight className="h-3 w-3" />
+                </button>
+            </div>
         </div>
     );
 }
@@ -605,7 +1257,7 @@ function MetricCard({
                 {positive ? (
                     <ArrowUpRight className="h-3 w-3 text-emerald-500" />
                 ) : (
-                    <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                    <ArrowDownRight className="h-3 w-3 text-amber-500" />
                 )}
 
                 <span
@@ -631,13 +1283,19 @@ function ChartCard({
     subtitle,
     value,
     data,
+    timeRange,
 }: {
     title: string;
     subtitle: string;
     value: string;
     data: number[];
+    timeRange: TimeRange;
 }) {
-    const max = Math.max(...data);
+    const max =
+        Math.max(...data, 0);
+
+    const safeMax =
+        max > 0 ? max : 1;
 
     return (
         <section className="rounded-xl border border-zinc-900 bg-zinc-950">
@@ -672,19 +1330,30 @@ function ChartCard({
 
                     <div className="absolute inset-0 flex items-end gap-[3px] px-1">
                         {data.map(
-                            (item, index) => (
+                            (
+                                item,
+                                index,
+                            ) => (
                                 <div
-                                    key={index}
+                                    key={
+                                        index
+                                    }
                                     className="group relative flex h-full flex-1 items-end"
                                 >
                                     <div
                                         className="w-full rounded-t-[2px] bg-zinc-800 transition-colors group-hover:bg-zinc-600"
                                         style={{
-                                            height: `${
-                                                (item /
-                                                    max) *
-                                                100
-                                            }%`,
+                                            height: `${Math.max(
+                                                (
+                                                    item /
+                                                    safeMax
+                                                ) *
+                                                100,
+                                                item >
+                                                    0
+                                                    ? 2
+                                                    : 0,
+                                            )}%`,
                                         }}
                                     />
                                 </div>
@@ -693,7 +1362,9 @@ function ChartCard({
                     </div>
                 </div>
 
-                <ChartLabels />
+                <ChartLabels
+                    timeRange={timeRange}
+                />
             </div>
         </section>
     );
@@ -708,7 +1379,11 @@ function MiniLineChart({
 }: {
     data: number[];
 }) {
-    const max = Math.max(...data);
+    const max =
+        Math.max(...data, 0);
+
+    const safeMax =
+        max > 0 ? max : 1;
 
     return (
         <div className="relative h-52">
@@ -724,22 +1399,34 @@ function MiniLineChart({
             </div>
 
             <div className="absolute inset-0 flex items-end gap-[3px] px-1">
-                {data.map((item, index) => (
-                    <div
-                        key={index}
-                        className="flex h-full flex-1 items-end"
-                    >
+                {data.map(
+                    (
+                        item,
+                        index,
+                    ) => (
                         <div
-                            className="w-full rounded-t-[2px] bg-zinc-800"
-                            style={{
-                                height: `${
-                                    (item / max) *
-                                    100
-                                }%`,
-                            }}
-                        />
-                    </div>
-                ))}
+                            key={index}
+                            className="flex h-full flex-1 items-end"
+                        >
+                            <div
+                                className="w-full rounded-t-[2px] bg-zinc-800"
+                                style={{
+                                    height: `${Math.max(
+                                        (
+                                            item /
+                                            safeMax
+                                        ) *
+                                        100,
+                                        item >
+                                            0
+                                            ? 2
+                                            : 0,
+                                    )}%`,
+                                }}
+                            />
+                        </div>
+                    ),
+                )}
             </div>
         </div>
     );
@@ -749,147 +1436,155 @@ function MiniLineChart({
 /* Chart Labels                                                               */
 /* ========================================================================== */
 
-function ChartLabels() {
+function ChartLabels({
+    timeRange,
+}: {
+    timeRange: TimeRange;
+}) {
+    const labels =
+        timeRange === "1h"
+            ? [
+                "1h ago",
+                "45m",
+                "30m",
+                "15m",
+                "Now",
+            ]
+            : timeRange === "6h"
+                ? [
+                    "6h ago",
+                    "4.5h",
+                    "3h",
+                    "1.5h",
+                    "Now",
+                ]
+                : timeRange === "7d"
+                    ? [
+                        "7d ago",
+                        "5d",
+                        "3d",
+                        "1d",
+                        "Now",
+                    ]
+                    : [
+                        "24h ago",
+                        "18h",
+                        "12h",
+                        "6h",
+                        "Now",
+                    ];
+
     return (
         <div className="mt-3 flex justify-between text-[10px] text-zinc-800">
-            <span>24h ago</span>
-            <span>18h</span>
-            <span>12h</span>
-            <span>6h</span>
-            <span>Now</span>
+            {labels.map(
+                (label) => (
+                    <span
+                        key={label}
+                    >
+                        {label}
+                    </span>
+                ),
+            )}
         </div>
     );
 }
 
 /* ========================================================================== */
-/* Dependency Item                                                            */
+/* Empty State                                                                */
 /* ========================================================================== */
 
-function DependencyItem({
-    dependency,
+function EmptyState({
+    title,
+    description,
+    action,
 }: {
-    dependency: Dependency;
+    title: string;
+    description: string;
+    action?: React.ReactNode;
 }) {
-    const isHealthy =
-        dependency.status === "Healthy";
-
     return (
-        <div className="flex items-center gap-3 px-5 py-4">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-zinc-900 bg-black">
-                {dependency.type === "Database" ? (
-                    <Database className="h-3.5 w-3.5 text-zinc-600" />
-                ) : (
-                    <Server className="h-3.5 w-3.5 text-zinc-600" />
+        <div className="rounded-xl border border-zinc-900 bg-zinc-950 p-10 text-center">
+            <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl border border-zinc-900 bg-black">
+                <TriangleAlert className="h-4 w-4 text-zinc-600" />
+            </div>
+
+            <h2 className="mt-4 text-sm font-semibold text-zinc-300">
+                {title}
+            </h2>
+
+            <p className="mx-auto mt-2 max-w-md text-xs leading-5 text-zinc-700">
+                {description}
+            </p>
+
+            {action && (
+                <div className="mt-5">
+                    {action}
+                </div>
+            )}
+        </div>
+    );
+}
+
+/* ========================================================================== */
+/* Empty Section                                                              */
+/* ========================================================================== */
+
+function EmptySection({
+    icon: Icon,
+    title,
+    description,
+}: {
+    icon: typeof Activity;
+    title: string;
+    description: string;
+}) {
+    return (
+        <div className="flex min-h-40 flex-col items-center justify-center px-6 py-8 text-center">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-900 bg-black">
+                <Icon className="h-4 w-4 text-zinc-700" />
+            </div>
+
+            <p className="mt-3 text-xs font-medium text-zinc-500">
+                {title}
+            </p>
+
+            <p className="mt-1 max-w-xs text-[10px] leading-4 text-zinc-800">
+                {description}
+            </p>
+        </div>
+    );
+}
+
+/* ========================================================================== */
+/* Loading                                                                    */
+/* ========================================================================== */
+
+function LoadingState() {
+    return (
+        <div className="space-y-6">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                {[1, 2, 3, 4].map(
+                    (item) => (
+                        <div
+                            key={item}
+                            className="h-32 animate-pulse rounded-xl border border-zinc-900 bg-zinc-950"
+                        />
+                    ),
                 )}
             </div>
 
-            <div className="min-w-0 flex-1">
-                <p className="truncate text-xs font-medium text-zinc-400">
-                    {dependency.name}
-                </p>
-
-                <p className="mt-1 text-[10px] text-zinc-800">
-                    {dependency.requests}
-                </p>
+            <div className="grid gap-6 xl:grid-cols-2">
+                {[1, 2].map(
+                    (item) => (
+                        <div
+                            key={item}
+                            className="h-80 animate-pulse rounded-xl border border-zinc-900 bg-zinc-950"
+                        />
+                    ),
+                )}
             </div>
 
-            <div className="text-right">
-                <p className="font-mono text-[11px] text-zinc-600">
-                    {dependency.latency}
-                </p>
-
-                <p
-                    className={`mt-1 text-[10px] ${
-                        isHealthy
-                            ? "text-emerald-600"
-                            : "text-amber-500"
-                    }`}
-                >
-                    {dependency.status}
-                </p>
-            </div>
-        </div>
-    );
-}
-
-/* ========================================================================== */
-/* Instance                                                                   */
-/* ========================================================================== */
-
-function Instance({
-    id,
-    region,
-    uptime,
-    cpu,
-    memory,
-}: {
-    id: string;
-    region: string;
-    uptime: string;
-    cpu: string;
-    memory: string;
-}) {
-    return (
-        <div className="bg-zinc-950 p-5">
-            <div className="flex items-center justify-between gap-3">
-                <div className="flex min-w-0 items-center gap-2">
-                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
-
-                    <span className="truncate font-mono text-[11px] text-zinc-500">
-                        {id}
-                    </span>
-                </div>
-
-                <span className="shrink-0 text-[10px] text-emerald-600">
-                    Healthy
-                </span>
-            </div>
-
-            <div className="mt-4 space-y-2">
-                <InfoRow
-                    label="Region"
-                    value={region}
-                />
-
-                <InfoRow
-                    label="Uptime"
-                    value={uptime}
-                />
-
-                <InfoRow
-                    label="CPU"
-                    value={cpu}
-                />
-
-                <InfoRow
-                    label="Memory"
-                    value={memory}
-                />
-            </div>
-        </div>
-    );
-}
-
-/* ========================================================================== */
-/* Info Row                                                                   */
-/* ========================================================================== */
-
-function InfoRow({
-    label,
-    value,
-}: {
-    label: string;
-    value: string;
-}) {
-    return (
-        <div className="flex items-center justify-between gap-4">
-            <span className="text-[10px] text-zinc-800">
-                {label}
-            </span>
-
-            <span className="font-mono text-right text-[10px] text-zinc-600">
-                {value}
-            </span>
+            <div className="h-64 animate-pulse rounded-xl border border-zinc-900 bg-zinc-950" />
         </div>
     );
 }
