@@ -198,20 +198,7 @@ export class ProjectApiKeyService {
 
         const keyHash = this.hashKey(key);
 
-        console.log("TELEMETRY AUTH HASH:", {
-            keyPrefix: key.slice(0, 11),
-            keyLength: key.length,
-            keyHash,
-        });
-
         const apiKey = await this.projectApiKeyRepository.findByHash(keyHash);
-
-        console.log("TELEMETRY AUTH RESULT:", {
-            found: Boolean(apiKey),
-            id: apiKey?.id ?? null,
-            projectId: apiKey?.projectId ?? null,
-            revokedAt: apiKey?.revokedAt ?? null,
-        });
 
         if (!apiKey) {
             return null;

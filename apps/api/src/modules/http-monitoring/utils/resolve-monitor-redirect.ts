@@ -31,10 +31,7 @@ export async function resolveMonitorRedirect(
         );
     }
 
-    /*
-     * Redirect target gets the exact same SSRF validation
-     * as the original monitoring URL.
-     */
+    // Redirect target gets the exact same SSRF validation as the original monitoring URL.
     const validatedUrl =
         await validateMonitorUrl(
             redirectUrl.toString(),

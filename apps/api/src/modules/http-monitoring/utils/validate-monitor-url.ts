@@ -53,10 +53,8 @@ export async function validateMonitorUrl(
         );
     }
 
-    /*
-     * If the hostname itself is an IP address,
-     * validate it directly and skip DNS resolution.
-     */
+    // If the hostname itself is an IP address, validate it directly and skip DNS resolution.
+    
     if (isIP(hostname)) {
         if (isPrivateIp(hostname)) {
             throw new AppError(
@@ -91,13 +89,11 @@ export async function validateMonitorUrl(
         );
     }
 
-    /*
-     * Every resolved address must be public.
-     *
-     * We check ALL addresses instead of accepting the
-     * first public address because DNS can return both
-     * public and private addresses.
-     */
+    // Every resolved address must be public.
+    //
+    // We check ALL addresses instead of accepting the
+    // first public address because DNS can return both
+    // public and private addresses.
     for (const address of addresses) {
         if (isPrivateIp(address.address)) {
             throw new AppError(

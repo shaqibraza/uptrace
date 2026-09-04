@@ -31,10 +31,6 @@ export class HttpCheckScheduler {
     ) {}
 
     async start() {
-        console.log(
-            "HTTP CHECK SCHEDULER STARTED",
-        );
-
         await this.sync();
 
         this.syncTimer = setInterval(
@@ -57,10 +53,6 @@ export class HttpCheckScheduler {
 
         this.timers.clear();
         this.endpointConfigs.clear();
-
-        console.log(
-            "HTTP CHECK SCHEDULER STOPPED",
-        );
     }
 
     private async sync() {
@@ -137,16 +129,8 @@ export class HttpCheckScheduler {
         endpoint: ScheduledEndpoint,
     ) {
         try {
-            console.log(
-                `HTTP CHECK STARTED: ${endpoint.method} ${endpoint.url}`,
-            );
-
             await this.httpCheckWorker.check(
                 endpoint,
-            );
-
-            console.log(
-                `HTTP CHECK COMPLETED: ${endpoint.method} ${endpoint.url}`,
             );
         } catch (error) {
             console.error(
