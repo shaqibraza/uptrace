@@ -473,7 +473,7 @@ export default function DashboardPage() {
 
                 <div className="mt-6 grid gap-6 md:grid-cols-2">
                     <Link
-                        href="/dashboard/connections"
+                        href="/dashboard/http-monitoring"
                         className="
                             group
                             rounded-xl
@@ -486,24 +486,24 @@ export default function DashboardPage() {
                     >
                         <div className="flex items-start justify-between">
                             <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-900 bg-black">
-                                <Database className="h-4 w-4 text-zinc-600" />
+                                <BarChart3 className="h-4 w-4 text-zinc-600" />
                             </div>
 
                             <ArrowUpRight className="h-4 w-4 text-zinc-800 transition-colors group-hover:text-zinc-500" />
                         </div>
 
                         <h3 className="mt-5 text-sm font-medium text-zinc-300">
-                            Database connections
+                            HTTP Endpoints connections
                         </h3>
 
                         <p className="mt-1 text-xs leading-5 text-zinc-700">
-                            2 PostgreSQL databases connected to your
-                            workspace.
+                            Configure your HTTP endpoints to start sending
+                            telemetry to Uptrace.
                         </p>
                     </Link>
 
                     <Link
-                        href="/dashboard/connections/instrumentation"
+                        href="/dashboard/instrumentation"
                         className="
                             group
                             rounded-xl

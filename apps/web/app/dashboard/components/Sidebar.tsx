@@ -52,18 +52,18 @@ const monitoringNavigation = [
 
 const dataNavigation = [
     {
-        label: "Connections",
-        href: "/dashboard/connections",
-        icon: Database,
+        label: "OpenTelemetry",
+        href: "/dashboard/instrumentation",
+        icon: Activity,
     },
-];
-
-const managementNavigation = [
     {
         label: "API Keys",
         href: "/dashboard/api-keys",
         icon: KeyRound,
     },
+];
+
+const managementNavigation = [
     {
         label: "Settings",
         href: "/dashboard/settings",
@@ -90,10 +90,7 @@ export function Sidebar() {
 
     return (
         <>
-            {/* ============================================================ */}
-            {/* Mobile Menu Button                                           */}
-            {/* ============================================================ */}
-
+            {/* Mobile Menu Button */}
             <button
                 type="button"
                 onClick={() => setMobileOpen(true)}
@@ -112,10 +109,7 @@ export function Sidebar() {
                 <Menu className="h-4 w-4" />
             </button>
 
-            {/* ============================================================ */}
-            {/* Mobile Backdrop                                               */}
-            {/* ============================================================ */}
-
+            {/* Mobile Backdrop */}
             {mobileOpen && (
                 <button
                     type="button"
@@ -130,9 +124,7 @@ export function Sidebar() {
                 />
             )}
 
-            {/* ============================================================ */}
-            {/* Sidebar                                                       */}
-            {/* ============================================================ */}
+            {/* Sidebar  */}
 
             <aside
                 className={`
@@ -151,9 +143,7 @@ export function Sidebar() {
                     }
                 `}
             >
-                {/* ======================================================== */}
-                {/* Header / Logo                                             */}
-                {/* ======================================================== */}
+                {/* Header / Logo */}
 
                 <div
                     className={`
@@ -232,9 +222,7 @@ export function Sidebar() {
                     </button>
                 </div>
 
-                {/* ======================================================== */}
-                {/* Expand button when collapsed                              */}
-                {/* ======================================================== */}
+                {/* Expand button when collapsed  */}
 
                 {collapsed && (
                     <button
@@ -258,15 +246,11 @@ export function Sidebar() {
                     </button>
                 )}
 
-                {/* ======================================================== */}
-                {/* Navigation                                                 */}
-                {/* ======================================================== */}
+                {/* Navigation */}
 
                 <div className="flex-1 overflow-y-auto px-3 py-5">
 
-                    {/* ---------------------------------------------------- */}
-                    {/* Monitoring                                           */}
-                    {/* ---------------------------------------------------- */}
+                    {/* Monitoring */}
 
                     {!collapsed && (
                         <p className="mb-2 px-2 text-[9px] font-semibold uppercase tracking-[0.16em] text-zinc-800">
@@ -302,13 +286,11 @@ export function Sidebar() {
                         )}
                     </nav>
 
-                    {/* ---------------------------------------------------- */}
-                    {/* Data                                                  */}
-                    {/* ---------------------------------------------------- */}
+                    {/* Data */}
 
                     {!collapsed && (
                         <p className="mb-2 mt-8 px-2 text-[9px] font-semibold uppercase tracking-[0.16em] text-zinc-800">
-                            Data
+                            Connection
                         </p>
                     )}
 

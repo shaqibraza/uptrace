@@ -33,6 +33,7 @@ type CopyId =
     | "install"
     | "config"
     | "env"
+    | "app"
     | "python-install"
     | "python-config"
     | "java-install"
@@ -62,8 +63,9 @@ const languageDescriptions: Record<
 };
 
 const nodeInstall = `pnpm add @opentelemetry/sdk-node \\
-@opentelemetry/auto-instrumentations-node \\
-@opentelemetry/exporter-trace-otlp-http`;
+@opentelemetry/exporter-trace-otlp-proto \\
+@opentelemetry/instrumentation-http \\
+@opentelemetry/instrumentation-express`;
 
 const pythonInstall = `pip install \\
 opentelemetry-distro \\
@@ -79,30 +81,63 @@ const goInstall = `go get go.opentelemetry.io/otel \\
 go get go.opentelemetry.io/otel/sdk \\
 go get go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp`;
 
+type NodeModuleSystem = "CommonJS" | "ESM";
+
 function getNodeConfig(
     endpoint: string,
+    moduleSystem: NodeModuleSystem,
 ) {
-    return `import { NodeSDK } from "@opentelemetry/sdk-node";
-import { getNodeAutoInstrumentations } from
-    "@opentelemetry/auto-instrumentations-node";
-import {
-    OTLPTraceExporter,
-} from "@opentelemetry/exporter-trace-otlp-http";
+    if (moduleSystem === "ESM") {
+        return `import { NodeSDK } from "@opentelemetry/sdk-node";
+import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-proto";
+import { HttpInstrumentation } from "@opentelemetry/instrumentation-http";
+import { ExpressInstrumentation } from "@opentelemetry/instrumentation-express";
+
+const exporter = new OTLPTraceExporter({
+  url: "${endpoint}",
+  headers: {
+    "x-uptrace-api-key": process.env.UPTRACE_API_KEY,
+  },
+});
 
 const sdk = new NodeSDK({
-    traceExporter: new OTLPTraceExporter({
-        url: "${endpoint}",
-        headers: {
-            "x-uptrace-api-key":
-                process.env.UPTRACE_API_KEY!,
-        },
-    }),
-    instrumentations: [
-        getNodeAutoInstrumentations(),
-    ],
+  traceExporter: exporter,
+  instrumentations: [
+    new HttpInstrumentation(),
+    new ExpressInstrumentation(),
+  ],
 });
 
 sdk.start();`;
+    }
+
+    return `const { NodeSDK } = require("@opentelemetry/sdk-node");
+const { OTLPTraceExporter } = require("@opentelemetry/exporter-trace-otlp-proto");
+const { HttpInstrumentation } = require("@opentelemetry/instrumentation-http");
+const { ExpressInstrumentation } = require("@opentelemetry/instrumentation-express");
+
+const exporter = new OTLPTraceExporter({
+  url: "${endpoint}",
+  headers: {
+    "x-uptrace-api-key": process.env.UPTRACE_API_KEY,
+  },
+});
+
+const sdk = new NodeSDK({
+  traceExporter: exporter,
+  instrumentations: [
+    new HttpInstrumentation(),
+    new ExpressInstrumentation(),
+  ],
+});
+
+sdk.start();`;
+}
+
+function getAppEntryConfig(moduleSystem: NodeModuleSystem) {
+    return moduleSystem === "ESM"
+        ? `import "./instrumentation.js";`
+        : `require("./instrumentation");`;
 }
 
 function getPythonConfig(
@@ -187,6 +222,9 @@ export default function InstrumentationPage() {
     const [language, setLanguage] =
         useState<Language>("Node.js");
 
+    const [nodeModuleSystem, setNodeModuleSystem] =
+        useState<NodeModuleSystem>("CommonJS");
+
     const [
         openLanguageMenu,
         setOpenLanguageMenu,
@@ -218,15 +256,6 @@ export default function InstrumentationPage() {
                 "",
             )}/v1/traces`,
         [apiBaseUrl],
-    );
-
-    const otlpBaseEndpoint = useMemo(
-        () =>
-            telemetryEndpoint.replace(
-                /\/v1\/traces$/,
-                "",
-            ),
-        [telemetryEndpoint],
     );
 
     const configuration = useMemo(() => {
@@ -261,21 +290,28 @@ export default function InstrumentationPage() {
                     install: nodeInstall,
                     config: getNodeConfig(
                         telemetryEndpoint,
+                        nodeModuleSystem,
                     ),
                 };
         }
     }, [
         language,
+        nodeModuleSystem,
         telemetryEndpoint,
     ]);
 
     const environmentVariables = useMemo(
         () =>
-            `OTEL_EXPORTER_OTLP_ENDPOINT=${otlpBaseEndpoint}
-OTEL_EXPORTER_OTLP_HEADERS=x-uptrace-api-key=YOUR_UPTRACE_API_KEY
-OTEL_SERVICE_NAME=my-application
-OTEL_RESOURCE_ATTRIBUTES=deployment.environment=production`,
-        [otlpBaseEndpoint],
+            `UPTRACE_API_KEY=YOUR_UPTRACE_API_KEY`,
+        [],
+    );
+
+    const appEntryConfig = useMemo(
+        () =>
+            language === "Node.js"
+                ? getAppEntryConfig(nodeModuleSystem)
+                : "",
+        [language, nodeModuleSystem],
     );
 
     const latestTrace = useMemo(() => {
@@ -445,35 +481,25 @@ OTEL_RESOURCE_ATTRIBUTES=deployment.environment=production`,
 
                     {/* Progress */}
                     <div className="mt-6 rounded-xl border border-zinc-900 bg-zinc-950 p-5">
-                        <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-                            <Step
-                                number="01"
-                                title="Install"
-                                active
-                            />
-
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                            <Step number="01" title="Install" active />
                             <div className="hidden h-px flex-1 bg-zinc-900 sm:block" />
-
-                            <Step
-                                number="02"
-                                title="Configure"
-                                active
-                            />
-
+                            <Step number="02" title="Configure" active />
                             <div className="hidden h-px flex-1 bg-zinc-900 sm:block" />
-
+                            <Step number="03" title="Load in app" active />
+                            <div className="hidden h-px flex-1 bg-zinc-900 sm:block" />
+                            <Step number="04" title="Environment" active />
+                            <div className="hidden h-px flex-1 bg-zinc-900 sm:block" />
                             <Step
-                                number="03"
+                                number="05"
                                 title="Verify"
-                                active={
-                                    verificationState ===
-                                    "success"
-                                }
+                                active={verificationState === "success"}
                             />
                         </div>
                     </div>
 
                     {/* Language */}
+
                     <section className="mt-6 rounded-xl border border-zinc-900 bg-zinc-950">
                         <div className="flex flex-col gap-4 border-b border-zinc-900 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                             <div>
@@ -592,92 +618,45 @@ OTEL_RESOURCE_ATTRIBUTES=deployment.environment=production`,
                             }
                         />
                     </section>
-
-                    {/* Credentials */}
-                    <section className="mt-6 rounded-xl border border-zinc-900 bg-zinc-950">
-                        <div className="border-b border-zinc-900 px-5 py-4">
-                            <div className="flex items-center gap-3">
-                                <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-900 bg-black">
-                                    <KeyRound className="h-4 w-4 text-zinc-600" />
-                                </div>
-
-                                <div>
-                                    <h2 className="text-sm font-semibold text-zinc-200">
-                                        Project configuration
-                                    </h2>
-
-                                    <p className="mt-1 text-xs text-zinc-700">
-                                        Use your project API key
-                                        when configuring your
-                                        application.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="grid gap-4 p-5 sm:grid-cols-2">
-                            <Credential
-                                label="OTLP trace endpoint"
-                                value={
-                                    telemetryEndpoint
-                                }
-                            />
-
-                            <Credential
-                                label="Project API key"
-                                value="YOUR_UPTRACE_API_KEY"
-                                secret
-                            />
-                        </div>
-
-                        <div className="mx-5 mb-5 flex flex-col gap-3 rounded-lg border border-zinc-900 bg-black p-4 sm:flex-row sm:items-center sm:justify-between">
-                            <div className="flex items-start gap-3">
-                                <KeyRound className="mt-0.5 h-4 w-4 shrink-0 text-zinc-600" />
-
-                                <div>
-                                    <p className="text-xs font-medium text-zinc-300">
-                                        Get your project API key
-                                    </p>
-
-                                    <p className="mt-1 max-w-xl text-[11px] leading-5 text-zinc-700">
-                                        Generate an API key from
-                                        the API Keys page, copy
-                                        the secret, and replace
-                                        the placeholder in your
-                                        application configuration.
-                                    </p>
-                                </div>
-                            </div>
-
-                            <Link
-                                href="/dashboard/api-keys"
-                                className="inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-md border border-zinc-800 px-3 text-[10px] text-zinc-500 transition-colors hover:border-zinc-700 hover:text-zinc-200"
-                            >
-                                Open API Keys
-                                <ExternalLink className="h-3 w-3" />
-                            </Link>
-                        </div>
-                    </section>
-
                     {/* Configuration */}
                     <section className="mt-6 overflow-hidden rounded-xl border border-zinc-900 bg-zinc-950">
-                        <div className="flex items-center justify-between border-b border-zinc-900 px-5 py-4">
+                        <div className="flex flex-col gap-4 border-b border-zinc-900 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                             <div>
                                 <p className="text-xs font-medium text-zinc-300">
                                     2. Configure OpenTelemetry
                                 </p>
-
                                 <p className="mt-1 text-[11px] text-zinc-700">
-                                    Initialize OpenTelemetry before
-                                    your application starts handling
-                                    requests.
+                                    Create <code className="font-mono text-zinc-600">instrumentation.js</code> and initialize the SDK before your application starts.
                                 </p>
                             </div>
 
+                            {language === "Node.js" && (
+                                <div className="flex shrink-0 rounded-lg border border-zinc-800 bg-black p-1">
+                                    {(["CommonJS", "ESM"] as NodeModuleSystem[]).map((item) => (
+                                        <button
+                                            key={item}
+                                            type="button"
+                                            onClick={() => setNodeModuleSystem(item)}
+                                            className={`rounded-md px-3 py-1.5 text-[10px] transition-colors ${nodeModuleSystem === item
+                                                    ? "bg-zinc-800 text-zinc-200"
+                                                    : "text-zinc-600 hover:text-zinc-300"
+                                                }`}
+                                        >
+                                            {item}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="flex items-center justify-between border-b border-zinc-900 px-5 py-3">
+                            <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-700">
+                                {language === "Node.js"
+                                    ? "instrumentation.js"
+                                    : "Configuration"}
+                            </p>
                             <CopyButton
-                                copied={
-                                    copied === "config"
-                                }
+                                copied={copied === "config"}
                                 onClick={() =>
                                     void copyCode(
                                         configuration.config,
@@ -687,32 +666,54 @@ OTEL_RESOURCE_ATTRIBUTES=deployment.environment=production`,
                             />
                         </div>
 
-                        <CodeBlock
-                            code={
-                                configuration.config
-                            }
-                        />
+                        <CodeBlock code={configuration.config} />
                     </section>
 
+
+                    {/* Load in application */}
+                    {language === "Node.js" && (
+                        <section className="mt-6 overflow-hidden rounded-xl border border-zinc-900 bg-zinc-950">
+                            <div className="flex items-center justify-between border-b border-zinc-900 px-5 py-4">
+                                <div>
+                                    <p className="text-xs font-medium text-zinc-300">
+                                        3. Load OpenTelemetry in your app
+                                    </p>
+                                    <p className="mt-1 text-[11px] text-zinc-700">
+                                        Import the instrumentation before your application initializes routes or starts the server.
+                                    </p>
+                                </div>
+                                <CopyButton
+                                    copied={copied === "app"}
+                                    onClick={() =>
+                                        void copyCode(
+                                            appEntryConfig,
+                                            "app",
+                                        )
+                                    }
+                                />
+                            </div>
+                            <CodeBlock code={appEntryConfig} />
+                            <div className="border-t border-zinc-900 px-5 py-4">
+                                <p className="text-[11px] leading-5 text-zinc-700">
+                                    Put this at the very top of your <code className="rounded bg-zinc-900 px-1.5 py-0.5 font-mono text-zinc-500">app.js</code> or <code className="rounded bg-zinc-900 px-1.5 py-0.5 font-mono text-zinc-500">index.js</code>, before creating the Express app.
+                                </p>
+                            </div>
+                        </section>
+                    )}
                     {/* Environment variables */}
                     <section className="mt-6 overflow-hidden rounded-xl border border-zinc-900 bg-zinc-950">
                         <div className="flex items-center justify-between border-b border-zinc-900 px-5 py-4">
                             <div>
                                 <p className="text-xs font-medium text-zinc-300">
-                                    Recommended environment
-                                    variables
+                                    4. Configure environment variables
                                 </p>
-
                                 <p className="mt-1 text-[11px] text-zinc-700">
-                                    Keep your project API key
-                                    outside your source code.
+                                    Store the project API key in your server environment instead of hardcoding it in source code.
                                 </p>
                             </div>
 
                             <CopyButton
-                                copied={
-                                    copied === "env"
-                                }
+                                copied={copied === "env"}
                                 onClick={() =>
                                     void copyCode(
                                         environmentVariables,
@@ -722,21 +723,38 @@ OTEL_RESOURCE_ATTRIBUTES=deployment.environment=production`,
                             />
                         </div>
 
-                        <CodeBlock
-                            code={
-                                environmentVariables
-                            }
-                        />
+                        <CodeBlock code={environmentVariables} />
+
+                        <div className="grid gap-4 border-t border-zinc-900 p-5 sm:grid-cols-2">
+                            <Credential
+                                label="OTLP trace endpoint"
+                                value={telemetryEndpoint}
+                            />
+                            <Credential
+                                label="Project API key"
+                                value="YOUR_UPTRACE_API_KEY"
+                                secret
+                            />
+                        </div>
 
                         <div className="border-t border-zinc-900 px-5 py-4">
-                            <p className="text-[11px] leading-5 text-zinc-700">
-                                Replace{" "}
-                                <code className="rounded bg-zinc-900 px-1.5 py-0.5 font-mono text-zinc-500">
-                                    YOUR_UPTRACE_API_KEY
-                                </code>{" "}
-                                with the API key generated from
-                                the API Keys page.
-                            </p>
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                <p className="text-[11px] leading-5 text-zinc-700">
+                                    Replace{" "}
+                                    <code className="rounded bg-zinc-900 px-1.5 py-0.5 font-mono text-zinc-500">
+                                        YOUR_UPTRACE_API_KEY
+                                    </code>{" "}
+                                    with a key generated from the API Keys page.
+                                </p>
+
+                                <Link
+                                    href="/dashboard/api-keys"
+                                    className="inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-md border border-zinc-800 px-3 text-[10px] text-zinc-500 transition-colors hover:border-zinc-700 hover:text-zinc-200"
+                                >
+                                    Open API Keys
+                                    <ExternalLink className="h-3 w-3" />
+                                </Link>
+                            </div>
                         </div>
                     </section>
 
@@ -766,9 +784,9 @@ OTEL_RESOURCE_ATTRIBUTES=deployment.environment=production`,
                         <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
                             <div
                                 className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border ${verificationState ===
-                                        "success"
-                                        ? "border-emerald-500/20 bg-emerald-500/5"
-                                        : "border-zinc-900 bg-black"
+                                    "success"
+                                    ? "border-emerald-500/20 bg-emerald-500/5"
+                                    : "border-zinc-900 bg-black"
                                     }`}
                             >
                                 {verificationState ===
@@ -781,7 +799,7 @@ OTEL_RESOURCE_ATTRIBUTES=deployment.environment=production`,
 
                             <div className="flex-1">
                                 <h2 className="text-sm font-semibold text-zinc-200">
-                                    3. Verify your setup
+                                    5. Verify your setup
                                 </h2>
 
                                 <p className="mt-1 text-xs leading-5 text-zinc-700">
@@ -815,8 +833,8 @@ OTEL_RESOURCE_ATTRIBUTES=deployment.environment=production`,
                             >
                                 <RefreshCw
                                     className={`h-3.5 w-3.5 ${traceLoading
-                                            ? "animate-spin"
-                                            : ""
+                                        ? "animate-spin"
+                                        : ""
                                         }`}
                                 />
 
@@ -909,8 +927,8 @@ function Step({
         <div className="flex items-center gap-3">
             <div
                 className={`flex h-7 w-7 items-center justify-center rounded-full border text-[10px] font-semibold ${active
-                        ? "border-zinc-600 bg-zinc-800 text-zinc-200"
-                        : "border-zinc-900 bg-black text-zinc-700"
+                    ? "border-zinc-600 bg-zinc-800 text-zinc-200"
+                    : "border-zinc-900 bg-black text-zinc-700"
                     }`}
             >
                 {number}
@@ -918,8 +936,8 @@ function Step({
 
             <span
                 className={`text-xs ${active
-                        ? "text-zinc-300"
-                        : "text-zinc-700"
+                    ? "text-zinc-300"
+                    : "text-zinc-700"
                     }`}
             >
                 {title}
