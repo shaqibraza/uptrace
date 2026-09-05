@@ -9,3 +9,4 @@ export { httpCheckResults } from "./http-check-results.js"
 export { traces } from "./traces.js";
 export { spans } from "./spans.js";
 export { projectApiKeys } from "./project-api-keys.js"
+export { metrics } from "./metrics.js";

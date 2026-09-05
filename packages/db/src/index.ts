@@ -11,4 +11,5 @@ export {
     traces ,
     spans,
     projectApiKeys,
+    metrics,
 } from "./schema/index.js";

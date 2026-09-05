@@ -92,6 +92,13 @@
       "when": 1787835881083,
       "tag": "0012_daily_wild_pack",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1788637398930,
+      "tag": "0013_dark_naoko",
+      "breakpoints": true
     }
   ]
 }

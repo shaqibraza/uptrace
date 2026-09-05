@@ -16,6 +16,10 @@ export function createTelemetryAuthMiddleware(
         next: NextFunction,
     ) {
         try {
+            console.log("TELEMETRY AUTH ROUTE", {
+                method: req.method,
+                url: req.originalUrl,
+            });
             const apiKey = req.headers["x-uptrace-api-key"];
             if (
                 typeof apiKey !== "string" ||

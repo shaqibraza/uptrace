@@ -194,18 +194,19 @@ export class ProjectApiKeyService {
         const key = rawKey.trim();
         if (!key) {
             return null;
-        };
+        }
 
         const keyHash = this.hashKey(key);
 
-        const apiKey = await this.projectApiKeyRepository.findByHash(keyHash);
+        const apiKey =
+            await this.projectApiKeyRepository.findByHash(keyHash);
 
         if (!apiKey) {
             return null;
-        };
+        }
 
         return apiKey;
-    };
+    }
 
     async markAsUsed(apiKeyId: string) {
         return await this.projectApiKeyRepository.updateLastUsedAt(apiKeyId);
