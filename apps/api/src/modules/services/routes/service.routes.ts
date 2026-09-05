@@ -1,12 +1,17 @@
 import { Router } from "express";
 
 import { requireAuth } from "../../auth/middlewares/auth.middleware.js";
+
 import { OrganizationRepository } from "../../organizations/repositories/organization.repository.js";
+
 import { ProjectRepository } from "../../projects/repositories/project.repository.js";
+
 import { ProjectService } from "../../projects/services/project.service.js";
 
 import { ServiceController } from "../controllers/service.controller.js";
+
 import { ServiceRepository } from "../repositories/service.repository.js";
+
 import { ServiceService } from "../services/service.service.js";
 
 export function createServiceRouter() {
@@ -40,7 +45,6 @@ export function createServiceRouter() {
 
     router.use(requireAuth);
 
-    // Services list
     router.get(
         "/projects/:projectId/services",
         serviceController.list.bind(
@@ -48,7 +52,6 @@ export function createServiceRouter() {
         ),
     );
 
-    // Service detail
     router.get(
         "/projects/:projectId/services/:serviceName",
         serviceController.getDetail.bind(

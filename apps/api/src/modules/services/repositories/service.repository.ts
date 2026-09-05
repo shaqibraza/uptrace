@@ -51,6 +51,30 @@ export type ServiceTrace = {
     startTime: Date;
 };
 
+export type ServiceDependency = {
+    name: string;
+    type: "service" | "database" | "http" | "messaging" | "unknown";
+    requestCount: number;
+    averageLatencyMs: number;
+    p95LatencyMs: number;
+    errorCount: number;
+    errorRate: number;
+    lastSeenAt: Date | null;
+};
+
+export type ServiceInstance = {
+    id: string;
+    hostName: string | null;
+    hostId: string | null;
+    environment: string | null;
+    requestCount: number;
+    averageLatencyMs: number;
+    p95LatencyMs: number;
+    errorCount: number;
+    errorRate: number;
+    lastSeenAt: Date | null;
+};
+
 export type ServiceDetail = {
     name: string;
     requestCount: number;
@@ -67,6 +91,8 @@ export type ServiceDetail = {
     operations: ServiceOperation[];
     timeSeries: ServiceTimeSeriesPoint[];
     recentTraces: ServiceTrace[];
+    dependencies: ServiceDependency[];
+    instances: ServiceInstance[];
 };
 
 export class ServiceRepository {
@@ -697,53 +723,359 @@ export class ServiceRepository {
         const bucketDurationSeconds =
             bucketSeconds;
 
-        return result.map(
-            (point) => {
-                const requestCount =
-                    Number(
-                        point.requestCount ??
-                        0,
-                    );
+        // Fill missing buckets with zero values so charts remain continuous
+        // even when the service had no spans during part of the period.
+        const bucketMap = new Map(
+            result.map((point) => [
+                new Date(point.timestamp).getTime(),
+                point,
+            ]),
+        );
 
-                const errorCount =
-                    Number(
-                        point.errorCount ??
-                        0,
-                    );
+        const bucketSizeMs =
+            bucketSeconds * 1000;
 
-                const requestRate =
+        const firstBucketMs =
+            Math.floor(
+                startTime.getTime() /
+                    bucketSizeMs,
+            ) * bucketSizeMs;
+
+        const lastBucketMs =
+            Math.floor(
+                endTime.getTime() /
+                    bucketSizeMs,
+            ) * bucketSizeMs;
+
+        const points: ServiceTimeSeriesPoint[] = [];
+
+        for (
+            let timestampMs = firstBucketMs;
+            timestampMs <= lastBucketMs;
+            timestampMs += bucketSizeMs
+        ) {
+            const point = bucketMap.get(timestampMs);
+
+            const requestCount = Number(
+                point?.requestCount ?? 0,
+            );
+
+            const errorCount = Number(
+                point?.errorCount ?? 0,
+            );
+
+            const averageLatencyMs = Number(
+                point?.averageLatencyMs ?? 0,
+            );
+
+            points.push({
+                timestamp: new Date(timestampMs),
+                requestCount,
+                requestRate:
                     requestCount /
-                    bucketDurationSeconds;
-
-                const errorRate =
+                    bucketDurationSeconds,
+                averageLatencyMs,
+                errorCount,
+                errorRate:
                     requestCount === 0
                         ? 0
-                        : (
-                            errorCount /
-                            requestCount
-                        ) *
-                        100;
+                        : (errorCount /
+                              requestCount) *
+                          100,
+            });
+        }
 
-                return {
-                    timestamp:
-                        point.timestamp,
+        return points;
+    }
 
-                    requestCount,
+    /**
+     * Get external/internal dependencies called by a service.
+     *
+     * Dependency identity is derived from standard OpenTelemetry span
+     * attributes. We intentionally keep this query attribute-driven so no
+     * additional database table is required for the service detail page.
+     */
+    async listDependencies(
+        projectId: string,
+        serviceName: string,
+        options?: {
+            startTime?: Date;
+            endTime?: Date;
+        },
+    ): Promise<ServiceDependency[]> {
+        const now = new Date();
+        const startTime =
+            options?.startTime ??
+            new Date(
+                now.getTime() -
+                    24 * 60 * 60 * 1000,
+            );
+        const endTime =
+            options?.endTime ?? now;
+        const endTimeIso = endTime.toISOString();
 
-                    requestRate,
+        const dependencyName = sql<string | null>`
+            coalesce(
+                nullif(${spans.attributes}->>'peer.service', ''),
+                nullif(${spans.attributes}->>'rpc.service', ''),
+                nullif(${spans.attributes}->>'messaging.destination.name', ''),
+                nullif(${spans.attributes}->>'server.address', ''),
+                nullif(${spans.attributes}->>'url.domain', ''),
+                nullif(${spans.attributes}->>'db.namespace', ''),
+                nullif(${spans.attributes}->>'db.system', '')
+            )
+        `;
 
-                    averageLatencyMs:
-                        Number(
-                            point.averageLatencyMs ??
-                            0,
+        const dependencyType = sql<string>`
+            case
+                when nullif(${spans.attributes}->>'db.system', '') is not null
+                    or nullif(${spans.attributes}->>'db.namespace', '') is not null
+                    then 'database'
+                when nullif(${spans.attributes}->>'messaging.system', '') is not null
+                    or nullif(${spans.attributes}->>'messaging.destination.name', '') is not null
+                    then 'messaging'
+                when nullif(${spans.attributes}->>'rpc.service', '') is not null
+                    or nullif(${spans.attributes}->>'peer.service', '') is not null
+                    then 'service'
+                when nullif(${spans.attributes}->>'server.address', '') is not null
+                    or nullif(${spans.attributes}->>'url.domain', '') is not null
+                    then 'http'
+                else 'unknown'
+            end
+        `;
+
+        const result = await db
+            .select({
+                name: dependencyName.as("dependency_name"),
+                type: dependencyType.as("dependency_type"),
+                requestCount: sql<number>`
+                    count(*)::int
+                `.as("request_count"),
+                averageLatencyMs: sql<number>`
+                    coalesce(avg(${spans.durationMs}), 0)
+                `.as("average_latency_ms"),
+                p95LatencyMs: sql<number>`
+                    coalesce(
+                        percentile_cont(0.95)
+                        within group (
+                            order by ${spans.durationMs}
                         ),
+                        0
+                    )
+                `.as("p95_latency_ms"),
+                errorCount: sql<number>`
+                    count(*) filter (
+                        where ${spans.status} = 'ERROR'
+                    )::int
+                `.as("error_count"),
+                errorRate: sql<number>`
+                    coalesce(
+                        (
+                            count(*) filter (
+                                where ${spans.status} = 'ERROR'
+                            )::numeric /
+                            nullif(count(*), 0)
+                        ) * 100,
+                        0
+                    )
+                `.as("error_rate"),
+                lastSeenAt: sql<Date | null>`
+                    max(${spans.startTime})
+                `.as("last_seen_at"),
+            })
+            .from(spans)
+            .where(
+                and(
+                    eq(spans.projectId, projectId),
+                    eq(spans.serviceName, serviceName),
+                    gte(spans.startTime, startTime),
+                    sql`${spans.startTime} <= ${endTimeIso}`,
+                    sql`${dependencyName} is not null`,
+                    sql`${dependencyName} <> ${serviceName}`,
+                    sql`
+                        (
+                            ${spans.kind} in (
+                                '3',
+                                'CLIENT',
+                                '4',
+                                'PRODUCER',
+                                '5',
+                                'CONSUMER'
+                            )
+                            or nullif(${spans.attributes}->>'peer.service', '') is not null
+                            or nullif(${spans.attributes}->>'rpc.service', '') is not null
+                            or nullif(${spans.attributes}->>'db.system', '') is not null
+                            or nullif(${spans.attributes}->>'messaging.destination.name', '') is not null
+                        )
+                    `,
+                ),
+            )
+            .groupBy(dependencyName, dependencyType)
+            .orderBy(
+                desc(sql`count(*)`),
+                asc(dependencyName),
+            );
 
-                    errorCount,
+        return result.map((dependency) => ({
+            name: dependency.name ?? "unknown",
+            type:
+                dependency.type === "database" ||
+                dependency.type === "http" ||
+                dependency.type === "messaging" ||
+                dependency.type === "service"
+                    ? dependency.type
+                    : "unknown",
+            requestCount: Number(
+                dependency.requestCount ?? 0,
+            ),
+            averageLatencyMs: Number(
+                dependency.averageLatencyMs ?? 0,
+            ),
+            p95LatencyMs: Number(
+                dependency.p95LatencyMs ?? 0,
+            ),
+            errorCount: Number(
+                dependency.errorCount ?? 0,
+            ),
+            errorRate: Number(
+                dependency.errorRate ?? 0,
+            ),
+            lastSeenAt:
+                dependency.lastSeenAt ?? null,
+        }));
+    }
 
-                    errorRate,
-                };
-            },
-        );
+    /**
+     * Get runtime instances from OpenTelemetry resource attributes.
+     * service.instance.id is preferred, followed by host.name and host.id.
+     */
+    async listInstances(
+        projectId: string,
+        serviceName: string,
+        options?: {
+            startTime?: Date;
+            endTime?: Date;
+        },
+    ): Promise<ServiceInstance[]> {
+        const now = new Date();
+        const startTime =
+            options?.startTime ??
+            new Date(
+                now.getTime() -
+                    24 * 60 * 60 * 1000,
+            );
+        const endTime =
+            options?.endTime ?? now;
+        const endTimeIso = endTime.toISOString();
+
+        const instanceId = sql<string | null>`
+            coalesce(
+                nullif(${spans.resourceAttributes}->>'service.instance.id', ''),
+                nullif(${spans.resourceAttributes}->>'host.name', ''),
+                nullif(${spans.resourceAttributes}->>'host.id', '')
+            )
+        `;
+
+        const hostName = sql<string | null>`
+            nullif(${spans.resourceAttributes}->>'host.name', '')
+        `;
+
+        const hostId = sql<string | null>`
+            nullif(${spans.resourceAttributes}->>'host.id', '')
+        `;
+
+        const environment = sql<string | null>`
+            coalesce(
+                nullif(${spans.resourceAttributes}->>'deployment.environment.name', ''),
+                nullif(${spans.resourceAttributes}->>'deployment.environment', '')
+            )
+        `;
+
+        const result = await db
+            .select({
+                id: instanceId.as("instance_id"),
+                hostName: hostName.as("host_name"),
+                hostId: hostId.as("host_id"),
+                environment: environment.as("environment"),
+                requestCount: sql<number>`
+                    count(*)::int
+                `.as("request_count"),
+                averageLatencyMs: sql<number>`
+                    coalesce(avg(${spans.durationMs}), 0)
+                `.as("average_latency_ms"),
+                p95LatencyMs: sql<number>`
+                    coalesce(
+                        percentile_cont(0.95)
+                        within group (
+                            order by ${spans.durationMs}
+                        ),
+                        0
+                    )
+                `.as("p95_latency_ms"),
+                errorCount: sql<number>`
+                    count(*) filter (
+                        where ${spans.status} = 'ERROR'
+                    )::int
+                `.as("error_count"),
+                errorRate: sql<number>`
+                    coalesce(
+                        (
+                            count(*) filter (
+                                where ${spans.status} = 'ERROR'
+                            )::numeric /
+                            nullif(count(*), 0)
+                        ) * 100,
+                        0
+                    )
+                `.as("error_rate"),
+                lastSeenAt: sql<Date | null>`
+                    max(${spans.startTime})
+                `.as("last_seen_at"),
+            })
+            .from(spans)
+            .where(
+                and(
+                    eq(spans.projectId, projectId),
+                    eq(spans.serviceName, serviceName),
+                    gte(spans.startTime, startTime),
+                    sql`${spans.startTime} <= ${endTimeIso}`,
+                    sql`${instanceId} is not null`,
+                ),
+            )
+            .groupBy(
+                instanceId,
+                hostName,
+                hostId,
+                environment,
+            )
+            .orderBy(
+                desc(sql`count(*)`),
+                asc(instanceId),
+            );
+
+        return result.map((instance) => ({
+            id: instance.id ?? "unknown",
+            hostName: instance.hostName ?? null,
+            hostId: instance.hostId ?? null,
+            environment: instance.environment ?? null,
+            requestCount: Number(
+                instance.requestCount ?? 0,
+            ),
+            averageLatencyMs: Number(
+                instance.averageLatencyMs ?? 0,
+            ),
+            p95LatencyMs: Number(
+                instance.p95LatencyMs ?? 0,
+            ),
+            errorCount: Number(
+                instance.errorCount ?? 0,
+            ),
+            errorRate: Number(
+                instance.errorRate ?? 0,
+            ),
+            lastSeenAt:
+                instance.lastSeenAt ?? null,
+        }));
     }
 
     /**
@@ -891,6 +1223,8 @@ export class ServiceRepository {
             operations,
             timeSeries,
             recentTraces,
+            dependencies,
+            instances,
         ] = await Promise.all([
             this.listOperations(
                 projectId,
@@ -911,6 +1245,18 @@ export class ServiceRepository {
                     ...options,
                     limit: 20,
                 },
+            ),
+
+            this.listDependencies(
+                projectId,
+                serviceName,
+                options,
+            ),
+
+            this.listInstances(
+                projectId,
+                serviceName,
+                options,
             ),
         ]);
 
@@ -978,6 +1324,10 @@ export class ServiceRepository {
             timeSeries,
 
             recentTraces,
+
+            dependencies,
+
+            instances,
         };
     }
 }

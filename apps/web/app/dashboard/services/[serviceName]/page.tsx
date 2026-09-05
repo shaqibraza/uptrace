@@ -1047,14 +1047,18 @@ export default function ServiceDetailPage() {
                                     {paginatedTraces.map(
                                         (trace) => (
                                             <Link
-                                                key={trace.id}
+                                                key={
+                                                    trace.id
+                                                }
                                                 href="/dashboard/traces"
                                                 className="flex flex-col gap-3 px-5 py-4 transition-colors hover:bg-zinc-900/20 sm:flex-row sm:items-center"
                                             >
                                                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-zinc-900 bg-black">
-                                                    {trace.status === "OK" ? (
+                                                    {trace.status ===
+                                                        "OK" ? (
                                                         <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                                                    ) : trace.status === "Error" ? (
+                                                    ) : trace.status ===
+                                                        "Error" ? (
                                                         <AlertTriangle className="h-3.5 w-3.5 text-red-400" />
                                                     ) : (
                                                         <Clock3 className="h-3.5 w-3.5 text-zinc-600" />
@@ -1063,33 +1067,44 @@ export default function ServiceDetailPage() {
 
                                                 <div className="min-w-0 flex-1">
                                                     <p className="truncate font-mono text-xs text-zinc-400">
-                                                        {trace.operation}
+                                                        {
+                                                            trace.operation
+                                                        }
                                                     </p>
 
                                                     <p className="mt-1 truncate font-mono text-[10px] text-zinc-800">
-                                                        {trace.id}
+                                                        {
+                                                            trace.id
+                                                        }
                                                     </p>
                                                 </div>
 
                                                 <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
                                                     <span className="font-mono text-xs text-zinc-600">
-                                                        {trace.duration}
+                                                        {
+                                                            trace.duration
+                                                        }
                                                     </span>
 
                                                     <span
-                                                        className={`text-[10px] ${
-                                                            trace.status === "OK"
+                                                        className={`text-[10px] ${trace.status ===
+                                                                "OK"
                                                                 ? "text-emerald-600"
-                                                                : trace.status === "Error"
+                                                                : trace.status ===
+                                                                    "Error"
                                                                     ? "text-red-400"
                                                                     : "text-zinc-600"
-                                                        }`}
+                                                            }`}
                                                     >
-                                                        {trace.status}
+                                                        {
+                                                            trace.status
+                                                        }
                                                     </span>
 
                                                     <span className="text-[10px] text-zinc-800">
-                                                        {trace.time}
+                                                        {
+                                                            trace.time
+                                                        }
                                                     </span>
                                                 </div>
                                             </Link>
@@ -1114,7 +1129,6 @@ export default function ServiceDetailPage() {
                                 description="No traces were recorded for this service in the selected period."
                             />
                         )}
-
                     </section>
 
                     {/* Instances */}

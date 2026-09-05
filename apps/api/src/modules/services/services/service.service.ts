@@ -1,5 +1,7 @@
 import { AppError } from "../../../core/errors/app-error.js";
+
 import { ProjectService } from "../../projects/services/project.service.js";
+
 import {
     ServiceRepository,
     type ServiceDetail,
@@ -25,6 +27,11 @@ export class ServiceService {
         private readonly projectService: ProjectService,
     ) {}
 
+    /**
+     * List all services belonging to a project.
+     *
+     * Project access is verified before telemetry is queried.
+     */
     async listServices(
         projectId: string,
         userId: string,
@@ -65,47 +72,59 @@ export class ServiceService {
             name: service.name,
 
             requestCount:
-                service.requestCount,
+                Number(service.requestCount ?? 0),
 
             averageLatencyMs:
-                Math.round(
-                    service.averageLatencyMs * 100,
-                ) / 100,
+                roundNumber(
+                    service.averageLatencyMs,
+                ),
 
             p95LatencyMs:
-                Math.round(
-                    service.p95LatencyMs * 100,
-                ) / 100,
+                roundNumber(
+                    service.p95LatencyMs,
+                ),
 
             errorCount:
-                service.errorCount,
+                Number(service.errorCount ?? 0),
 
             uptime:
-                Math.round(
-                    service.uptime * 100,
-                ) / 100,
+                roundNumber(
+                    service.uptime,
+                ),
 
             errorRate:
-                Math.round(
-                    service.errorRate * 100,
-                ) / 100,
+                roundNumber(
+                    service.errorRate,
+                ),
 
             trend:
                 service.trend,
 
             trendValue:
-                Math.round(
-                    service.trendValue * 100,
-                ) / 100,
+                roundNumber(
+                    service.trendValue,
+                ),
 
             firstSeenAt:
-                service.firstSeenAt,
+                service.firstSeenAt ?? null,
 
             lastSeenAt:
-                service.lastSeenAt,
+                service.lastSeenAt ?? null,
         }));
     }
 
+    /**
+     * Get complete detail information for a single service.
+     *
+     * Includes:
+     * - summary metrics
+     * - request rate
+     * - operations
+     * - time series
+     * - recent traces
+     * - dependencies
+     * - instances
+     */
     async getServiceDetail(
         projectId: string,
         serviceName: string,
@@ -163,85 +182,139 @@ export class ServiceService {
         return {
             ...service,
 
+            /*
+             * ------------------------------------------------------------------
+             * Summary
+             * ------------------------------------------------------------------
+             */
+
+            requestCount:
+                Number(service.requestCount ?? 0),
+
             requestRate:
-                Math.round(
-                    service.requestRate * 100,
-                ) / 100,
+                roundNumber(
+                    service.requestRate,
+                ),
 
             averageLatencyMs:
-                Math.round(
-                    service.averageLatencyMs * 100,
-                ) / 100,
+                roundNumber(
+                    service.averageLatencyMs,
+                ),
 
             p95LatencyMs:
-                Math.round(
-                    service.p95LatencyMs * 100,
-                ) / 100,
+                roundNumber(
+                    service.p95LatencyMs,
+                ),
 
-            uptime:
-                Math.round(
-                    service.uptime * 100,
-                ) / 100,
+            errorCount:
+                Number(service.errorCount ?? 0),
 
             errorRate:
-                Math.round(
-                    service.errorRate * 100,
-                ) / 100,
+                roundNumber(
+                    service.errorRate,
+                ),
+
+            uptime:
+                roundNumber(
+                    service.uptime,
+                ),
 
             trendValue:
-                Math.round(
-                    service.trendValue * 100,
-                ) / 100,
+                roundNumber(
+                    service.trendValue,
+                ),
+
+            firstSeenAt:
+                service.firstSeenAt ?? null,
+
+            lastSeenAt:
+                service.lastSeenAt ?? null,
+
+            /*
+             * ------------------------------------------------------------------
+             * Operations
+             * ------------------------------------------------------------------
+             */
 
             operations:
                 service.operations.map(
                     (operation) => ({
                         ...operation,
 
+                        requestCount:
+                            Number(
+                                operation.requestCount ??
+                                0,
+                            ),
+
                         averageLatencyMs:
-                            Math.round(
-                                operation.averageLatencyMs *
-                                    100,
-                            ) / 100,
+                            roundNumber(
+                                operation.averageLatencyMs,
+                            ),
 
                         p95LatencyMs:
-                            Math.round(
-                                operation.p95LatencyMs *
-                                    100,
-                            ) / 100,
+                            roundNumber(
+                                operation.p95LatencyMs,
+                            ),
+
+                        errorCount:
+                            Number(
+                                operation.errorCount ??
+                                0,
+                            ),
 
                         errorRate:
-                            Math.round(
-                                operation.errorRate *
-                                    100,
-                            ) / 100,
+                            roundNumber(
+                                operation.errorRate,
+                            ),
                     }),
                 ),
+
+            /*
+             * ------------------------------------------------------------------
+             * Time series
+             * ------------------------------------------------------------------
+             */
 
             timeSeries:
                 service.timeSeries.map(
                     (point) => ({
                         ...point,
 
+                        requestCount:
+                            Number(
+                                point.requestCount ??
+                                0,
+                            ),
+
                         requestRate:
-                            Math.round(
-                                point.requestRate *
-                                    100,
-                            ) / 100,
+                            roundNumber(
+                                point.requestRate,
+                            ),
 
                         averageLatencyMs:
-                            Math.round(
-                                point.averageLatencyMs *
-                                    100,
-                            ) / 100,
+                            roundNumber(
+                                point.averageLatencyMs,
+                            ),
+
+                        errorCount:
+                            Number(
+                                point.errorCount ??
+                                0,
+                            ),
 
                         errorRate:
-                            Math.round(
-                                point.errorRate *
-                                    100,
-                            ) / 100,
+                            roundNumber(
+                                point.errorRate,
+                            ),
                     }),
                 ),
+
+            /*
+             * ------------------------------------------------------------------
+             * Recent traces
+             * ------------------------------------------------------------------
+             */
 
             recentTraces:
                 service.recentTraces.map(
@@ -249,12 +322,141 @@ export class ServiceService {
                         ...trace,
 
                         durationMs:
-                            Math.round(
-                                trace.durationMs *
-                                    100,
-                            ) / 100,
+                            roundNumber(
+                                trace.durationMs,
+                            ),
+                    }),
+                ),
+
+            /*
+             * ------------------------------------------------------------------
+             * Dependencies
+             * ------------------------------------------------------------------
+             */
+
+            dependencies:
+                service.dependencies.map(
+                    (dependency) => ({
+                        ...dependency,
+
+                        requestCount:
+                            Number(
+                                dependency.requestCount ??
+                                0,
+                            ),
+
+                        averageLatencyMs:
+                            roundNumber(
+                                dependency.averageLatencyMs,
+                            ),
+
+                        p95LatencyMs:
+                            roundNumber(
+                                dependency.p95LatencyMs,
+                            ),
+
+                        errorCount:
+                            Number(
+                                dependency.errorCount ??
+                                0,
+                            ),
+
+                        errorRate:
+                            roundNumber(
+                                dependency.errorRate,
+                            ),
+
+                        lastSeenAt:
+                            dependency.lastSeenAt ??
+                            null,
+                    }),
+                ),
+
+            /*
+             * ------------------------------------------------------------------
+             * Instances
+             * ------------------------------------------------------------------
+             */
+
+            instances:
+                service.instances.map(
+                    (instance) => ({
+                        ...instance,
+
+                        id:
+                            instance.id,
+
+                        hostName:
+                            instance.hostName ??
+                            null,
+
+                        hostId:
+                            instance.hostId ??
+                            null,
+
+                        environment:
+                            instance.environment ??
+                            null,
+
+                        requestCount:
+                            Number(
+                                instance.requestCount ??
+                                0,
+                            ),
+
+                        averageLatencyMs:
+                            roundNumber(
+                                instance.averageLatencyMs,
+                            ),
+
+                        p95LatencyMs:
+                            roundNumber(
+                                instance.p95LatencyMs,
+                            ),
+
+                        errorCount:
+                            Number(
+                                instance.errorCount ??
+                                0,
+                            ),
+
+                        errorRate:
+                            roundNumber(
+                                instance.errorRate,
+                            ),
+
+                        lastSeenAt:
+                            instance.lastSeenAt ??
+                            null,
                     }),
                 ),
         };
     }
+}
+
+/**
+ * Normalize floating-point values returned by PostgreSQL.
+ *
+ * Keeps API responses predictable without changing
+ * the actual repository calculations.
+ */
+function roundNumber(
+    value: number | null | undefined,
+    decimals = 2,
+): number {
+    const numericValue =
+        Number(value ?? 0);
+
+    if (!Number.isFinite(numericValue)) {
+        return 0;
+    }
+
+    const multiplier =
+        10 ** decimals;
+
+    return (
+        Math.round(
+            numericValue * multiplier,
+        ) / multiplier
+    );
 }

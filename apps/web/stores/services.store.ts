@@ -13,9 +13,11 @@ type ServicesState = {
     serviceDetail: ServiceDetail | null;
 
     isLoading: boolean;
+
     isDetailLoading: boolean;
 
     error: string | null;
+
     detailError: string | null;
 
     fetchServices: (
@@ -36,21 +38,26 @@ type ServicesState = {
     ) => Promise<boolean>;
 
     clearServices: () => void;
+
     clearServiceDetail: () => void;
+
     clearError: () => void;
 };
 
 export const useServicesStore =
     create<ServicesState>()(
         (set) => ({
+
             services: [],
 
             serviceDetail: null,
 
             isLoading: false,
+
             isDetailLoading: false,
 
             error: null,
+
             detailError: null,
 
             fetchServices: async (
@@ -90,9 +97,7 @@ export const useServicesStore =
                     return true;
                 } catch (error) {
                     const message =
-                        getApiErrorMessage(
-                            error,
-                        );
+                        getApiErrorMessage(error);
 
                     set({
                         isLoading: false,
@@ -103,67 +108,59 @@ export const useServicesStore =
                 }
             },
 
-            fetchServiceDetail:
-                async (
-                    projectId,
-                    serviceName,
-                    options,
-                ) => {
-                    if (
-                        !projectId ||
-                        !serviceName
-                    ) {
-                        set({
-                            serviceDetail: null,
-                            detailError: null,
-                        });
-
-                        return false;
-                    }
-
+            fetchServiceDetail: async (
+                projectId,
+                serviceName,
+                options,
+            ) => {
+                if (
+                    !projectId ||
+                    !serviceName
+                ) {
                     set({
-                        isDetailLoading: true,
+                        serviceDetail: null,
                         detailError: null,
                     });
 
-                    try {
-                        const response =
-                            await getServiceDetailApi(
-                                {
-                                    projectId,
-                                    serviceName,
-                                    ...options,
-                                },
-                            );
+                    return false;
+                }
 
-                        const serviceDetail =
-                            response.data.service;
+                set({
+                    isDetailLoading: true,
+                    detailError: null,
+                });
 
-                        set({
-                            serviceDetail,
-                            isDetailLoading:
-                                false,
-                            detailError: null,
+                try {
+                    const response =
+                        await getServiceDetailApi({
+                            projectId,
+                            serviceName,
+                            ...options,
                         });
 
-                        return true;
-                    } catch (error) {
-                        const message =
-                            getApiErrorMessage(
-                                error,
-                            );
+                    const serviceDetail =
+                        response.data.service;
 
-                        set({
-                            serviceDetail: null,
-                            isDetailLoading:
-                                false,
-                            detailError:
-                                message,
-                        });
+                    set({
+                        serviceDetail,
+                        isDetailLoading: false,
+                        detailError: null,
+                    });
 
-                        return false;
-                    }
-                },
+                    return true;
+                } catch (error) {
+                    const message =
+                        getApiErrorMessage(error);
+
+                    set({
+                        serviceDetail: null,
+                        isDetailLoading: false,
+                        detailError: message,
+                    });
+
+                    return false;
+                }
+            },
 
             clearServices: () => {
                 set({
@@ -211,7 +208,10 @@ function getApiErrorMessage(
         const message =
             response?.data?.error?.message;
 
-        if (typeof message === "string") {
+        if (
+            typeof message === "string" &&
+            message.trim()
+        ) {
             return message;
         }
     }

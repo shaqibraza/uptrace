@@ -5,6 +5,7 @@ import type {
 } from "express";
 
 import { AppError } from "../../../core/errors/app-error.js";
+
 import { ServiceService } from "../services/service.service.js";
 
 export class ServiceController {
@@ -12,11 +13,20 @@ export class ServiceController {
         private readonly serviceService: ServiceService,
     ) {}
 
+    /**
+     * GET /projects/:projectId/services
+     *
+     * Returns all services for the selected project.
+     *
+     * Optional query parameters:
+     * - startTime
+     * - endTime
+     */
     async list(
         req: Request,
         res: Response,
         next: NextFunction,
-    ) {
+    ): Promise<void> {
         try {
             const userId = req.user?.id;
             const projectId = req.params.projectId;
@@ -28,6 +38,7 @@ export class ServiceController {
                 throw new AppError(
                     "Authentication required",
                     401,
+                    "UNAUTHORIZED",
                 );
             }
 
@@ -38,6 +49,7 @@ export class ServiceController {
                 throw new AppError(
                     "Project ID is required",
                     400,
+                    "PROJECT_ID_REQUIRED",
                 );
             }
 
@@ -78,7 +90,7 @@ export class ServiceController {
                     options,
                 );
 
-            return res.status(200).json({
+            res.status(200).json({
                 success: true,
                 data: {
                     services,
@@ -89,18 +101,33 @@ export class ServiceController {
         }
     }
 
+    /**
+     * GET /projects/:projectId/services/:serviceName
+     *
+     * Returns complete service detail information.
+     *
+     * Includes:
+     * - summary metrics
+     * - request rate
+     * - operations
+     * - time series
+     * - recent traces
+     * - dependencies
+     * - instances
+     *
+     * Optional query parameters:
+     * - startTime
+     * - endTime
+     */
     async getDetail(
         req: Request,
         res: Response,
         next: NextFunction,
-    ) {
+    ): Promise<void> {
         try {
             const userId = req.user?.id;
-            const projectId =
-                req.params.projectId;
-
-            const serviceName =
-                req.params.serviceName;
+            const projectId = req.params.projectId;
+            const serviceName = req.params.serviceName;
 
             if (
                 !userId ||
@@ -109,6 +136,7 @@ export class ServiceController {
                 throw new AppError(
                     "Authentication required",
                     401,
+                    "UNAUTHORIZED",
                 );
             }
 
@@ -119,6 +147,7 @@ export class ServiceController {
                 throw new AppError(
                     "Project ID is required",
                     400,
+                    "PROJECT_ID_REQUIRED",
                 );
             }
 
@@ -129,6 +158,7 @@ export class ServiceController {
                 throw new AppError(
                     "Service name is required",
                     400,
+                    "SERVICE_NAME_REQUIRED",
                 );
             }
 
@@ -162,17 +192,18 @@ export class ServiceController {
                 options.endTime = endTime;
             }
 
+            const decodedServiceName =
+                decodeURIComponent(serviceName);
+
             const service =
                 await this.serviceService.getServiceDetail(
                     projectId,
-                    decodeURIComponent(
-                        serviceName,
-                    ),
+                    decodedServiceName,
                     userId,
                     options,
                 );
 
-            return res.status(200).json({
+            res.status(200).json({
                 success: true,
                 data: {
                     service,
@@ -183,6 +214,9 @@ export class ServiceController {
         }
     }
 
+    /**
+     * Validate that the requested time range is logically valid.
+     */
     private validateDateRange(
         startTime?: Date,
         endTime?: Date,
@@ -195,10 +229,14 @@ export class ServiceController {
             throw new AppError(
                 "startTime must be before endTime",
                 400,
+                "INVALID_DATE_RANGE",
             );
         }
     }
 
+    /**
+     * Parse an optional query-string date.
+     */
     private parseDate(
         value: unknown,
         fieldName: string,
@@ -215,6 +253,7 @@ export class ServiceController {
             throw new AppError(
                 `${fieldName} must be a valid date`,
                 400,
+                "INVALID_DATE",
             );
         }
 
@@ -228,6 +267,7 @@ export class ServiceController {
             throw new AppError(
                 `${fieldName} must be a valid date`,
                 400,
+                "INVALID_DATE",
             );
         }
 
