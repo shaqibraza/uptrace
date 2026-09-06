@@ -38,15 +38,10 @@ type MetricsStore = {
     sources: MetricSource[];
 
     loading: boolean;
-
     detailLoading: boolean;
-
     timeSeriesLoading: boolean;
-
     secondaryTimeSeriesLoading: boolean;
-
     summaryLoading: boolean;
-
     sourcesLoading: boolean;
 
     error: string | null;
@@ -86,6 +81,152 @@ type MetricsStore = {
 
     clearMetrics: () => void;
 };
+
+/**
+ * Normalize a metric detail response before putting it into Zustand.
+ *
+ * The backend normally returns all of these fields, but keeping the
+ * normalization here prevents the UI from crashing if an optional
+ * field is missing or if an older backend response is encountered.
+ */
+function normalizeMetricDetail(
+    metric: MetricDetail | null,
+): MetricDetail | null {
+    if (!metric) {
+        return null;
+    }
+
+    const dataPoints = Array.isArray(metric.dataPoints)
+        ? metric.dataPoints
+              .filter(
+                  (point) =>
+                      point &&
+                      typeof point.timestamp === "string",
+              )
+              .map((point) => ({
+                  timestamp: point.timestamp,
+                  value:
+                      typeof point.value === "number" &&
+                      Number.isFinite(point.value)
+                          ? point.value
+                          : 0,
+              }))
+        : [];
+
+    const timeSeries = Array.isArray(metric.timeSeries)
+        ? metric.timeSeries
+              .filter(
+                  (point) =>
+                      point &&
+                      typeof point.timestamp === "string",
+              )
+              .map((point) => ({
+                  timestamp: point.timestamp,
+                  value:
+                      typeof point.value === "number" &&
+                      Number.isFinite(point.value)
+                          ? point.value
+                          : 0,
+                  dataPointCount:
+                      typeof point.dataPointCount === "number" &&
+                      Number.isFinite(point.dataPointCount)
+                          ? point.dataPointCount
+                          : 0,
+                  averageValue:
+                      typeof point.averageValue === "number" &&
+                      Number.isFinite(point.averageValue)
+                          ? point.averageValue
+                          : 0,
+                  minValue:
+                      typeof point.minValue === "number" &&
+                      Number.isFinite(point.minValue)
+                          ? point.minValue
+                          : 0,
+                  maxValue:
+                      typeof point.maxValue === "number" &&
+                      Number.isFinite(point.maxValue)
+                          ? point.maxValue
+                          : 0,
+              }))
+        : [];
+
+    const lastDataPoint =
+        dataPoints.length > 0
+            ? dataPoints[dataPoints.length - 1]
+            : null;
+
+    const lastSeriesPoint =
+        timeSeries.length > 0
+            ? timeSeries[timeSeries.length - 1]
+            : null;
+
+    const latestValue =
+        typeof metric.latestValue === "number" &&
+        Number.isFinite(metric.latestValue)
+            ? metric.latestValue
+            : lastDataPoint?.value ??
+              lastSeriesPoint?.value ??
+              lastSeriesPoint?.averageValue ??
+              0;
+
+    const dataPointCount =
+        typeof metric.dataPointCount === "number" &&
+        Number.isFinite(metric.dataPointCount)
+            ? metric.dataPointCount
+            : dataPoints.length;
+
+    return {
+        name:
+            typeof metric.name === "string"
+                ? metric.name
+                : "",
+
+        type:
+            metric.type === "Counter" ||
+            metric.type === "Gauge" ||
+            metric.type === "Histogram"
+                ? metric.type
+                : "unknown",
+
+        description:
+            typeof metric.description === "string"
+                ? metric.description
+                : null,
+
+        unit:
+            typeof metric.unit === "string"
+                ? metric.unit
+                : null,
+
+        serviceName:
+            typeof metric.serviceName === "string"
+                ? metric.serviceName
+                : null,
+
+        environment:
+            typeof metric.environment === "string"
+                ? metric.environment
+                : null,
+
+        latestValue,
+
+        dataPointCount,
+
+        firstSeenAt:
+            typeof metric.firstSeenAt === "string"
+                ? metric.firstSeenAt
+                : null,
+
+        lastSeenAt:
+            typeof metric.lastSeenAt === "string"
+                ? metric.lastSeenAt
+                : null,
+
+        timeSeries,
+
+        dataPoints,
+    };
+}
 
 export const useMetricsStore = create<MetricsStore>((set) => ({
     metrics: [],
@@ -140,16 +281,26 @@ export const useMetricsStore = create<MetricsStore>((set) => ({
             );
 
             set({
-                metrics: response.metrics,
-                summary: response.summary,
-                sources: response.sources,
+                metrics: Array.isArray(response.metrics)
+                    ? response.metrics
+                    : [],
+
+                summary: response.summary ?? null,
+
+                sources: Array.isArray(response.sources)
+                    ? response.sources
+                    : [],
+
                 loading: false,
+
                 error: null,
             });
         } catch {
             set({
                 metrics: [],
+
                 loading: false,
+
                 error: "Failed to load metrics",
             });
         }
@@ -169,7 +320,14 @@ export const useMetricsStore = create<MetricsStore>((set) => ({
             return;
         }
 
+        /**
+         * Clear the previous metric immediately.
+         *
+         * This prevents a previous metric from being displayed while
+         * the new metric detail request is loading.
+         */
         set({
+            selectedMetric: null,
             detailLoading: true,
             error: null,
         });
@@ -181,15 +339,24 @@ export const useMetricsStore = create<MetricsStore>((set) => ({
                 options,
             );
 
+            const normalizedMetric =
+                normalizeMetricDetail(metric);
+
             set({
-                selectedMetric: metric,
+                selectedMetric: normalizedMetric,
+
                 detailLoading: false,
-                error: null,
+
+                error: normalizedMetric
+                    ? null
+                    : "Metric not found",
             });
         } catch {
             set({
                 selectedMetric: null,
+
                 detailLoading: false,
+
                 error: "Failed to load metric detail",
             });
         }
@@ -223,15 +390,22 @@ export const useMetricsStore = create<MetricsStore>((set) => ({
                 );
 
             set({
-                timeSeries,
+                timeSeries: Array.isArray(timeSeries)
+                    ? timeSeries
+                    : [],
+
                 timeSeriesLoading: false,
+
                 error: null,
             });
         } catch {
             set({
                 timeSeries: [],
+
                 timeSeriesLoading: false,
-                error: "Failed to load metric time series",
+
+                error:
+                    "Failed to load metric time series",
             });
         }
     },
@@ -244,6 +418,7 @@ export const useMetricsStore = create<MetricsStore>((set) => ({
         if (!projectId || !metricName) {
             set({
                 secondaryTimeSeries: [],
+
                 secondaryTimeSeriesLoading: false,
             });
 
@@ -252,6 +427,7 @@ export const useMetricsStore = create<MetricsStore>((set) => ({
 
         set({
             secondaryTimeSeriesLoading: true,
+
             error: null,
         });
 
@@ -264,15 +440,23 @@ export const useMetricsStore = create<MetricsStore>((set) => ({
                 );
 
             set({
-                secondaryTimeSeries: timeSeries,
+                secondaryTimeSeries:
+                    Array.isArray(timeSeries)
+                        ? timeSeries
+                        : [],
+
                 secondaryTimeSeriesLoading: false,
+
                 error: null,
             });
         } catch {
             set({
                 secondaryTimeSeries: [],
+
                 secondaryTimeSeriesLoading: false,
-                error: "Failed to load secondary metric time series",
+
+                error:
+                    "Failed to load secondary metric time series",
             });
         }
     },
@@ -284,6 +468,7 @@ export const useMetricsStore = create<MetricsStore>((set) => ({
         if (!projectId) {
             set({
                 summary: null,
+
                 summaryLoading: false,
             });
 
@@ -292,6 +477,7 @@ export const useMetricsStore = create<MetricsStore>((set) => ({
 
         set({
             summaryLoading: true,
+
             error: null,
         });
 
@@ -303,15 +489,20 @@ export const useMetricsStore = create<MetricsStore>((set) => ({
                 );
 
             set({
-                summary,
+                summary: summary ?? null,
+
                 summaryLoading: false,
+
                 error: null,
             });
         } catch {
             set({
                 summary: null,
+
                 summaryLoading: false,
-                error: "Failed to load metrics summary",
+
+                error:
+                    "Failed to load metrics summary",
             });
         }
     },
@@ -323,6 +514,7 @@ export const useMetricsStore = create<MetricsStore>((set) => ({
         if (!projectId) {
             set({
                 sources: [],
+
                 sourcesLoading: false,
             });
 
@@ -331,6 +523,7 @@ export const useMetricsStore = create<MetricsStore>((set) => ({
 
         set({
             sourcesLoading: true,
+
             error: null,
         });
 
@@ -342,15 +535,22 @@ export const useMetricsStore = create<MetricsStore>((set) => ({
                 );
 
             set({
-                sources,
+                sources: Array.isArray(sources)
+                    ? sources
+                    : [],
+
                 sourcesLoading: false,
+
                 error: null,
             });
         } catch {
             set({
                 sources: [],
+
                 sourcesLoading: false,
-                error: "Failed to load metric sources",
+
+                error:
+                    "Failed to load metric sources",
             });
         }
     },

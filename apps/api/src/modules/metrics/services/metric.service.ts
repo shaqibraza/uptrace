@@ -4,6 +4,7 @@ import {
     type MetricSource,
     type MetricSummary,
 } from "../repositories/metric.repository.js";
+import { ProjectService } from "../../projects/services/project.service.js";
 
 export type MetricServiceOptions = {
     startTime?: Date;
@@ -27,6 +28,7 @@ export type MetricOverview = {
 export class MetricService {
     constructor(
         private readonly metricRepository: MetricRepository,
+        private readonly projectService: ProjectService,
     ) {}
 
     /**
@@ -41,6 +43,11 @@ export class MetricService {
         this.validateUserId(userId);
         this.validateDateRange(options);
 
+        await this.projectService.getById(
+            projectId,
+            userId,
+        );
+
         const [
             metrics,
             summary,
@@ -50,12 +57,10 @@ export class MetricService {
                 projectId,
                 options,
             ),
-
             this.metricRepository.getSummary(
                 projectId,
                 options,
             ),
-
             this.metricRepository.listSources(
                 projectId,
                 options,
@@ -92,6 +97,11 @@ export class MetricService {
 
         this.validateDateRange(options);
 
+        await this.projectService.getById(
+            projectId,
+            userId,
+        );
+
         return this.metricRepository.getMetric(
             projectId,
             metricName.trim(),
@@ -122,6 +132,11 @@ export class MetricService {
 
         this.validateDateRange(options);
 
+        await this.projectService.getById(
+            projectId,
+            userId,
+        );
+
         return this.metricRepository.getTimeSeries(
             projectId,
             metricName.trim(),
@@ -144,6 +159,11 @@ export class MetricService {
         this.validateUserId(userId);
         this.validateDateRange(options);
 
+        await this.projectService.getById(
+            projectId,
+            userId,
+        );
+
         return this.metricRepository.getSummary(
             projectId,
             options,
@@ -164,6 +184,11 @@ export class MetricService {
         this.validateProjectId(projectId);
         this.validateUserId(userId);
         this.validateDateRange(options);
+
+        await this.projectService.getById(
+            projectId,
+            userId,
+        );
 
         return this.metricRepository.listSources(
             projectId,

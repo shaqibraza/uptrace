@@ -435,7 +435,7 @@ export default function MetricsPage() {
                 mobileLabel: "Action",
                 render: (metric) => (
                     <Link
-                        href={`/dashboard/metrics?metric=${encodeURIComponent(
+                        href={`/dashboard/metrics/${encodeURIComponent(
                             metric.name,
                         )}`}
                         onClick={(event) =>
@@ -924,7 +924,7 @@ export default function MetricsPage() {
                                 }
                                 onRowClick={(metric) => {
                                     window.location.href =
-                                        `/dashboard/metrics?metric=${encodeURIComponent(
+                                        `/dashboard/metrics/${encodeURIComponent(
                                             metric.name,
                                         )}`;
                                 }}

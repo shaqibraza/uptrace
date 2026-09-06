@@ -85,23 +85,38 @@ function buildQueryParams(
     const params = new URLSearchParams();
 
     if (options.startTime) {
-        params.set("startTime", options.startTime);
+        params.set(
+            "startTime",
+            options.startTime,
+        );
     }
 
     if (options.endTime) {
-        params.set("endTime", options.endTime);
+        params.set(
+            "endTime",
+            options.endTime,
+        );
     }
 
     if (options.serviceName) {
-        params.set("serviceName", options.serviceName);
+        params.set(
+            "serviceName",
+            options.serviceName,
+        );
     }
 
     if (options.environment) {
-        params.set("environment", options.environment);
+        params.set(
+            "environment",
+            options.environment,
+        );
     }
 
     if (options.search) {
-        params.set("search", options.search);
+        params.set(
+            "search",
+            options.search,
+        );
     }
 
     const query = params.toString();
@@ -109,7 +124,9 @@ function buildQueryParams(
     return query ? `?${query}` : "";
 }
 
-function encodeMetricName(metricName: string): string {
+function encodeMetricName(
+    metricName: string,
+): string {
     return encodeURIComponent(metricName);
 }
 
@@ -132,26 +149,34 @@ export async function listMetrics(
 export async function getMetricDetail(
     projectId: string,
     metricName: string,
-    options?: Omit<MetricQueryOptions, "search">,
+    options?: Omit<
+        MetricQueryOptions,
+        "search"
+    >,
 ): Promise<MetricDetail | null> {
     const query = buildQueryParams(options);
 
     const response = await api.get<{
         success: true;
-        data: MetricDetail | null;
+        data: {
+            metric: MetricDetail | null;
+        };
     }>(
         `/projects/${projectId}/metrics/${encodeMetricName(
             metricName,
         )}${query}`,
     );
 
-    return response.data.data;
+    return response.data.data.metric;
 }
 
 export async function getMetricTimeSeries(
     projectId: string,
     metricName: string,
-    options?: Omit<MetricQueryOptions, "search">,
+    options?: Omit<
+        MetricQueryOptions,
+        "search"
+    >,
 ): Promise<MetricTimeSeriesPoint[]> {
     const query = buildQueryParams(options);
 
@@ -171,7 +196,10 @@ export async function getMetricTimeSeries(
 
 export async function getMetricsSummary(
     projectId: string,
-    options?: Omit<MetricQueryOptions, "search">,
+    options?: Omit<
+        MetricQueryOptions,
+        "search"
+    >,
 ): Promise<MetricsSummary> {
     const query = buildQueryParams(options);
 
@@ -187,7 +215,10 @@ export async function getMetricsSummary(
 
 export async function getMetricSources(
     projectId: string,
-    options?: Omit<MetricQueryOptions, "search">,
+    options?: Omit<
+        MetricQueryOptions,
+        "search"
+    >,
 ): Promise<MetricSource[]> {
     const query = buildQueryParams(options);
 
