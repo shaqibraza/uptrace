@@ -6,6 +6,7 @@ import {
     BarChart3,
     Database,
     FileText,
+    KeyRound,
     LayoutDashboard,
     Search,
     Settings,
@@ -37,18 +38,25 @@ const commands: CommandItem[] = [
         keywords: ["home", "dashboard", "overview"],
     },
     {
-        label: "Traces",
-        description: "Inspect distributed traces",
-        href: "/dashboard/traces",
-        icon: Activity,
-        keywords: ["trace", "spans", "requests"],
+        label: "Api Keys",
+        description: "Manage API keys",
+        href: "/dashboard/api-keys",
+        icon: KeyRound,
+        keywords: ["api", "keys", "authentication"],
     },
     {
-        label: "Services",
-        description: "Monitor application services",
-        href: "/dashboard/services",
-        icon: Terminal,
-        keywords: ["service", "application", "apps"],
+        label: "HTTP Monitoring",
+        description: "Manage HTTP monitoring settings",
+        href: "/dashboard/http-monitoring",
+        icon: BarChart3,
+        keywords: ["http", "monitoring", "requests"],
+    },
+    {
+        label: "Instrumentation",
+        description: "Manage data connections",
+        href: "/dashboard/instrumentation",
+        icon: Database,
+        keywords: ["database", "connection", "postgres"],
     },
     {
         label: "Metrics",
@@ -58,18 +66,11 @@ const commands: CommandItem[] = [
         keywords: ["metrics", "charts", "monitoring"],
     },
     {
-        label: "Logs",
-        description: "Search application logs",
-        href: "/dashboard/logs",
-        icon: FileText,
-        keywords: ["logs", "errors", "events"],
-    },
-    {
-        label: "Connections",
-        description: "Manage data connections",
-        href: "/dashboard/connections",
-        icon: Database,
-        keywords: ["database", "connection", "postgres"],
+        label: "Services",
+        description: "Monitor application services",
+        href: "/dashboard/services",
+        icon: Terminal,
+        keywords: ["service", "application", "apps"],
     },
     {
         label: "Settings",
@@ -77,6 +78,20 @@ const commands: CommandItem[] = [
         href: "/dashboard/settings",
         icon: Settings,
         keywords: ["settings", "configuration", "preferences"],
+    },
+    {
+        label: "Logs",
+        description: "Search application logs",
+        href: "/dashboard/telemetry-logs",
+        icon: FileText,
+        keywords: ["logs", "errors", "events"],
+    },
+        {
+        label: "Traces",
+        description: "Inspect distributed traces",
+        href: "/dashboard/traces",
+        icon: Activity,
+        keywords: ["trace", "spans", "requests"],
     },
 ];
 
@@ -159,7 +174,7 @@ export function CommandPalette({
                     filteredCommands.length === 0
                         ? 0
                         : (current + 1) %
-                          filteredCommands.length,
+                        filteredCommands.length,
                 );
 
                 return;
@@ -172,8 +187,8 @@ export function CommandPalette({
                     filteredCommands.length === 0
                         ? 0
                         : current <= 0
-                          ? filteredCommands.length - 1
-                          : current - 1,
+                            ? filteredCommands.length - 1
+                            : current - 1,
                 );
 
                 return;
@@ -331,10 +346,9 @@ export function CommandPalette({
                                                     gap-3 rounded-lg
                                                     px-3 py-2.5
                                                     transition-colors
-                                                    ${
-                                                        active
-                                                            ? "bg-zinc-900"
-                                                            : "hover:bg-zinc-900/60"
+                                                    ${active
+                                                        ? "bg-zinc-900"
+                                                        : "hover:bg-zinc-900/60"
                                                     }
                                                 `}
                                             >
@@ -346,20 +360,18 @@ export function CommandPalette({
                                                         justify-center
                                                         rounded-lg
                                                         border
-                                                        ${
-                                                            active
-                                                                ? "border-zinc-800 bg-black"
-                                                                : "border-zinc-900 bg-black/50"
+                                                        ${active
+                                                            ? "border-zinc-800 bg-black"
+                                                            : "border-zinc-900 bg-black/50"
                                                         }
                                                     `}
                                                 >
                                                     <Icon
                                                         className={`
                                                             h-3.5 w-3.5
-                                                            ${
-                                                                active
-                                                                    ? "text-zinc-300"
-                                                                    : "text-zinc-700"
+                                                            ${active
+                                                                ? "text-zinc-300"
+                                                                : "text-zinc-700"
                                                             }
                                                         `}
                                                     />
@@ -369,10 +381,9 @@ export function CommandPalette({
                                                     <p
                                                         className={`
                                                             text-xs
-                                                            ${
-                                                                active
-                                                                    ? "text-zinc-200"
-                                                                    : "text-zinc-500"
+                                                            ${active
+                                                                ? "text-zinc-200"
+                                                                : "text-zinc-500"
                                                             }
                                                         `}
                                                     >

@@ -16,11 +16,19 @@ import {
     User,
 } from "lucide-react";
 
+import { useAuthStore } from "../../../stores/auth.store";
+import { useProjectStore } from "../../../stores/project.store";
 
-type Tab = "General" | "Project" | "Notifications" | "Security";
+type Tab =
+    | "General"
+    | "Project"
+    | "Notifications"
+    | "Security";
 
 export default function SettingsPage() {
-    const [activeTab, setActiveTab] = useState<Tab>("General");
+    const [activeTab, setActiveTab] =
+        useState<Tab>("General");
+
     const [saved, setSaved] = useState(false);
 
     const saveSettings = () => {
@@ -35,7 +43,6 @@ export default function SettingsPage() {
         <div>
             <main>
                 <div>
-
                     {/* Header */}
                     <div className="mb-7">
                         <div className="mb-2 flex items-center gap-2 text-xs text-zinc-600">
@@ -76,7 +83,6 @@ export default function SettingsPage() {
                     </div>
 
                     <div className="grid gap-6 lg:grid-cols-[210px_1fr]">
-
                         {/* Tabs */}
                         <aside className="h-fit rounded-xl border border-zinc-900 bg-zinc-950 p-2">
                             <div className="mb-2 px-3 py-2">
@@ -89,7 +95,9 @@ export default function SettingsPage() {
                                 <SettingTab
                                     icon={User}
                                     label="General"
-                                    active={activeTab === "General"}
+                                    active={
+                                        activeTab === "General"
+                                    }
                                     onClick={() =>
                                         setActiveTab("General")
                                     }
@@ -98,7 +106,9 @@ export default function SettingsPage() {
                                 <SettingTab
                                     icon={Database}
                                     label="Project"
-                                    active={activeTab === "Project"}
+                                    active={
+                                        activeTab === "Project"
+                                    }
                                     onClick={() =>
                                         setActiveTab("Project")
                                     }
@@ -108,17 +118,22 @@ export default function SettingsPage() {
                                     icon={Bell}
                                     label="Notifications"
                                     active={
-                                        activeTab === "Notifications"
+                                        activeTab ===
+                                        "Notifications"
                                     }
                                     onClick={() =>
-                                        setActiveTab("Notifications")
+                                        setActiveTab(
+                                            "Notifications",
+                                        )
                                     }
                                 />
 
                                 <SettingTab
                                     icon={Shield}
                                     label="Security"
-                                    active={activeTab === "Security"}
+                                    active={
+                                        activeTab === "Security"
+                                    }
                                     onClick={() =>
                                         setActiveTab("Security")
                                     }
@@ -166,6 +181,20 @@ export default function SettingsPage() {
 /* -------------------------------------------------------------------------- */
 
 function GeneralSettings() {
+    const user = useAuthStore((state) => state.user);
+
+    const userName = user?.name ?? "—";
+    const userEmail = user?.email ?? "—";
+
+    const initials =
+        user?.name
+            ?.trim()
+            .split(/\s+/)
+            .filter(Boolean)
+            .slice(0, 2)
+            .map((part) => part[0]?.toUpperCase())
+            .join("") || "U";
+
     return (
         <div className="space-y-6">
             <SettingsSection
@@ -174,16 +203,16 @@ function GeneralSettings() {
             >
                 <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
                     <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-zinc-800 bg-zinc-900 text-lg font-semibold text-zinc-400">
-                        MS
+                        {initials}
                     </div>
 
                     <div>
                         <p className="text-sm font-medium text-zinc-300">
-                            Mohd Shaqib Raza
+                            {userName}
                         </p>
 
                         <p className="mt-1 text-xs text-zinc-700">
-                            shaqib@example.com
+                            {userEmail}
                         </p>
 
                         <button
@@ -197,24 +226,14 @@ function GeneralSettings() {
 
                 <div className="mt-6 grid gap-5 sm:grid-cols-2">
                     <InputField
-                        label="First name"
-                        value="Mohd Shaqib"
-                    />
-
-                    <InputField
-                        label="Last name"
-                        value="Raza"
+                        label="Name"
+                        value={userName}
                     />
 
                     <InputField
                         label="Email"
-                        value="shaqib@example.com"
+                        value={userEmail}
                         disabled
-                    />
-
-                    <InputField
-                        label="Timezone"
-                        value="Asia/Kolkata"
                     />
                 </div>
             </SettingsSection>
@@ -263,6 +282,10 @@ function GeneralSettings() {
 /* -------------------------------------------------------------------------- */
 
 function ProjectSettings() {
+    const selectedProject = useProjectStore(
+        (state) => state.selectedProject,
+    );
+
     return (
         <div className="space-y-6">
             <SettingsSection
@@ -272,7 +295,10 @@ function ProjectSettings() {
                 <div className="space-y-5">
                     <InputField
                         label="Project name"
-                        value="My Uptrace Project"
+                        value={
+                            selectedProject?.name ??
+                            "No project selected"
+                        }
                     />
 
                     <div>
@@ -282,7 +308,8 @@ function ProjectSettings() {
 
                         <div className="flex items-center gap-2 rounded-lg border border-zinc-900 bg-black px-3 py-2.5">
                             <code className="flex-1 font-mono text-xs text-zinc-500">
-                                proj_7f8c91a2e4d8
+                                {selectedProject?.id ??
+                                    "—"}
                             </code>
 
                             <button
@@ -557,10 +584,9 @@ function SettingTab({
             onClick={onClick}
             className={`
                 flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-xs transition-colors
-                ${
-                    active
-                        ? "bg-zinc-900 text-zinc-200"
-                        : "text-zinc-600 hover:bg-zinc-900/50 hover:text-zinc-400"
+                ${active
+                    ? "bg-zinc-900 text-zinc-200"
+                    : "text-zinc-600 hover:bg-zinc-900/50 hover:text-zinc-400"
                 }
             `}
         >
@@ -651,17 +677,15 @@ function AppearanceCard({
             type="button"
             className={`
                 rounded-lg border p-4 text-left transition-colors
-                ${
-                    active
-                        ? "border-zinc-700 bg-zinc-900"
-                        : "border-zinc-900 bg-black hover:border-zinc-800"
+                ${active
+                    ? "border-zinc-700 bg-zinc-900"
+                    : "border-zinc-900 bg-black hover:border-zinc-800"
                 }
             `}
         >
             <Icon
-                className={`h-4 w-4 ${
-                    active ? "text-zinc-300" : "text-zinc-700"
-                }`}
+                className={`h-4 w-4 ${active ? "text-zinc-300" : "text-zinc-700"
+                    }`}
             />
 
             <p className="mt-3 text-xs text-zinc-400">
@@ -691,7 +715,8 @@ function ToggleRow({
     description: string;
     enabled?: boolean;
 }) {
-    const [active, setActive] = useState(enabled ?? false);
+    const [active, setActive] =
+        useState(enabled ?? false);
 
     return (
         <div className="flex items-center justify-between gap-5 py-4 first:pt-0 last:pb-0">
@@ -717,10 +742,9 @@ function ToggleRow({
                 <span
                     className={`
                         absolute top-1 h-3 w-3 rounded-full transition-transform
-                        ${
-                            active
-                                ? "translate-x-5 bg-black"
-                                : "translate-x-1 bg-zinc-500"
+                        ${active
+                            ? "translate-x-5 bg-black"
+                            : "translate-x-1 bg-zinc-500"
                         }
                     `}
                 />
@@ -741,7 +765,9 @@ function ChannelRow({
     return (
         <div className="flex items-center justify-between rounded-lg border border-zinc-900 bg-black p-4">
             <div>
-                <p className="text-xs text-zinc-400">{name}</p>
+                <p className="text-xs text-zinc-400">
+                    {name}
+                </p>
 
                 <p className="mt-1 text-[10px] text-zinc-800">
                     {value}
@@ -749,9 +775,10 @@ function ChannelRow({
             </div>
 
             <span
-                className={`text-[10px] ${
-                    enabled ? "text-emerald-600" : "text-zinc-800"
-                }`}
+                className={`text-[10px] ${enabled
+                        ? "text-emerald-600"
+                        : "text-zinc-800"
+                    }`}
             >
                 {enabled ? "Connected" : "Not configured"}
             </span>
