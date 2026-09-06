@@ -1,8 +1,10 @@
 import { AppError } from "../../../core/errors/app-error.js";
-import { SpanRepository } from "../repositories/span.repository.js";
-import { TraceRepository } from "../repositories/trace.repository.js";
-import type { OtlpTraceRequest } from "../ingestion/otlp-trace.parser.js";
 
+import { SpanRepository } from "../repositories/span.repository.js";
+
+import { TraceRepository } from "../repositories/trace.repository.js";
+
+import type { OtlpTraceRequest } from "../ingestion/otlp-trace.parser.js";
 
 export class TraceIngestionService {
     constructor(
@@ -12,16 +14,39 @@ export class TraceIngestionService {
 
     async ingest(
         projectId: string,
-        payload: OtlpTraceRequest
+        payload: OtlpTraceRequest,
     ) {
         let traceCount = 0;
         let spanCount = 0;
 
-        for (const resourceSpan of payload.resourceSpans ?? []) {
+        for (
+            const resourceSpan of
+            payload.resourceSpans ?? []
+        ) {
             const resourceAttributes =
                 this.attributesToObject(
                     resourceSpan.resource?.attributes,
                 );
+
+            console.log(
+                "OTEL PARSED RESOURCE:",
+                JSON.stringify(resourceAttributes, null, 2),
+            );
+
+            console.log(
+                "OTEL PARSED SPANS:",
+                JSON.stringify(
+                    resourceSpan.scopeSpans?.flatMap((scopeSpan) =>
+                        (scopeSpan.spans ?? []).slice(0, 2).map((span) => ({
+                            name: span.name,
+                            attributes: span.attributes,
+                            resourceAttributes,
+                        })),
+                    ),
+                    null,
+                    2,
+                ),
+            );
 
             const serviceName =
                 this.getStringAttribute(
@@ -40,16 +65,22 @@ export class TraceIngestionService {
                 );
 
             for (
-                const scopeSpan of resourceSpan.scopeSpans ?? []
+                const scopeSpan of
+                resourceSpan.scopeSpans ?? []
             ) {
                 for (
-                    const span of scopeSpan.spans ?? []
+                    const span of
+                    scopeSpan.spans ?? []
                 ) {
                     const traceId =
-                        this.bytesToHex(span.traceId);
+                        this.bytesToHex(
+                            span.traceId,
+                        );
 
                     const spanId =
-                        this.bytesToHex(span.spanId);
+                        this.bytesToHex(
+                            span.spanId,
+                        );
 
                     if (!traceId || !spanId) {
                         continue;
@@ -89,16 +120,20 @@ export class TraceIngestionService {
                         );
 
                     const trace =
-                        await this.traceRepository.upsert({
-                            projectId,
-                            traceId,
-                            serviceName: spanServiceName,
-                            environment: environment ?? null,
-                            startTime,
-                            endTime,
-                            durationMs,
-                            status,
-                        });
+                        await this.traceRepository.upsert(
+                            {
+                                projectId,
+                                traceId,
+                                serviceName:
+                                    spanServiceName,
+                                environment:
+                                    environment ?? null,
+                                startTime,
+                                endTime,
+                                durationMs,
+                                status,
+                            },
+                        );
 
                     await this.spanRepository.upsert({
                         projectId,
@@ -147,6 +182,12 @@ export class TraceIngestionService {
                             ) ?? [],
                     });
 
+                    console.log("TRACE UPSERT RESULT:", {
+    traceId,
+    serviceName: spanServiceName,
+    savedServiceName: trace.serviceName,
+});
+
                     traceCount++;
                     spanCount++;
                 }
@@ -169,7 +210,9 @@ export class TraceIngestionService {
             return "";
         }
 
-        return Buffer.from(value).toString("hex");
+        return Buffer
+            .from(value)
+            .toString("hex");
     }
 
     private hrTimeToDate(
@@ -189,7 +232,9 @@ export class TraceIngestionService {
 
         return new Date(
             Number(seconds) * 1000 +
-            Math.floor(nanos / 1_000_000),
+            Math.floor(
+                nanos / 1_000_000,
+            ),
         );
     }
 
@@ -205,7 +250,10 @@ export class TraceIngestionService {
             return {};
         }
 
-        const result: Record<string, unknown> = {};
+        const result: Record<
+            string,
+            unknown
+        > = {};
 
         for (const attribute of attributes) {
             result[attribute.key] =
@@ -220,7 +268,10 @@ export class TraceIngestionService {
     private attributeValueToPrimitive(
         value: unknown,
     ): unknown {
-        if (!value || typeof value !== "object") {
+        if (
+            !value ||
+            typeof value !== "object"
+        ) {
             return value ?? null;
         }
 
@@ -261,7 +312,10 @@ export class TraceIngestionService {
     }
 
     private getStringAttribute(
-        attributes: Record<string, unknown>,
+        attributes: Record<
+            string,
+            unknown
+        >,
         key: string,
     ) {
         const value = attributes[key];

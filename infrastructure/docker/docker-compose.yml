@@ -43,6 +43,9 @@ services:
     container_name: uptrace-otel-collector
     restart: unless-stopped
 
+    environment:
+      UPTRACE_API_KEY: ${UPTRACE_API_KEY}
+
     command:
       - "--config=/etc/otelcol-contrib/otel-collector-config.yml"
 

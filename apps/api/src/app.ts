@@ -22,6 +22,7 @@ import { createServiceRouter } from "./modules/services/routes/service.routes.js
 import { createMetricRouter } from "./modules/metrics/routes/metric.routes.js";
 import { createMetricIngestionRouter } from "./modules/metrics/routes/metric-ingestion.routes.js";
 import { createLogRouter } from "./modules/observability-logs/routes/log.routes.js";
+import { createOverviewRouter } from "./modules/overview/routes/overview.routes.js";
 
 export const app = express();
 
@@ -46,6 +47,21 @@ app.use(
         credentials: true,
     }),
 );
+
+
+app.get("/health", async (_req, res, next) => {
+    try {
+        await client`SELECT 1`;
+
+        res.status(200).json({
+            status: "ok",
+            service: "uptrace-api",
+            database: "connected",
+        });
+    } catch (error) {
+        next(error);
+    }
+});
 
 app.use(
     "/v1/traces",
@@ -85,37 +101,41 @@ app.use(createLogRouter());
 
 app.use(createMetricIngestionRouter());
 
-app.use("/auth", createAuthRouter());
+app.use(
+    "/auth",
+    createAuthRouter(),
+);
 
-app.use("/organizations", createOrganizationRouter());
+app.use(
+    "/organizations",
+    createOrganizationRouter(),
+);
 
-app.use("/", createProjectRouter());
+app.use(
+    "/",
+    createProjectRouter(),
+);
 
-app.use("/", createHttpEndpointRouter());
+app.use(
+    "/",
+    createHttpEndpointRouter(),
+);
 
-app.use("/", createHttpCheckResultRouter());
+app.use(
+    "/",
+    createHttpCheckResultRouter(),
+);
 
-app.use("/", createProjectApiKeyRouter());
+app.use(
+    "/",
+    createProjectApiKeyRouter(),
+);
 
 app.use(createServiceRouter());
 
 app.use(createMetricRouter());
 
-
-
-app.get("/health", async (_req, res, next) => {
-    try {
-        await client`SELECT 1`;
-
-        res.status(200).json({
-            status: "ok",
-            service: "uptrace-api",
-            database: "connected",
-        });
-    } catch (error) {
-        next(error);
-    }
-});
+app.use(createOverviewRouter());
 
 app.use(notFoundHandler);
 

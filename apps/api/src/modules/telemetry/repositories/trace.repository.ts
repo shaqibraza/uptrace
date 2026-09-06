@@ -217,6 +217,11 @@ export class TraceRepository {
             )
             .limit(limit);
 
+        console.log(
+            "TRACE REPOSITORY RESULT:",
+            JSON.stringify(result.slice(0, 3), null, 2),
+        );
+
         return result;
     }
 }

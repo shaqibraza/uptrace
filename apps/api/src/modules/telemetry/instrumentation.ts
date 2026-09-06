@@ -1,8 +1,14 @@
-import { NodeSDK } from "@opentelemetry/sdk-node";
-import { getNodeAutoInstrumentations } from "@opentelemetry/auto-instrumentations-node";
-import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-proto";
+import "dotenv/config";
 
 import { env } from "../../config/index.js";
+
+import { NodeSDK } from "@opentelemetry/sdk-node";
+
+import { getNodeAutoInstrumentations } from "@opentelemetry/auto-instrumentations-node";
+
+import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-proto";
+
+import { resourceFromAttributes } from "@opentelemetry/resources";
 
 function parseOtlpHeaders(
     rawHeaders?: string,
@@ -40,6 +46,24 @@ function parseOtlpHeaders(
         : undefined;
 }
 
+const serviceName =
+    env.OTEL_SERVICE_NAME?.trim() ||
+    "uptrace-api";
+
+const serviceVersion =
+    env.OTEL_SERVICE_VERSION?.trim() ||
+    "0.1.0";
+
+const environment =
+    env.OTEL_ENVIRONMENT?.trim() ||
+    "development";
+
+const resource = resourceFromAttributes({
+    "service.name": serviceName,
+    "service.version": serviceVersion,
+    "deployment.environment.name": environment,
+});
+
 const otlpHeaders = parseOtlpHeaders(
     env.OTEL_EXPORTER_OTLP_HEADERS,
 );
@@ -47,25 +71,30 @@ const otlpHeaders = parseOtlpHeaders(
 const traceExporter = new OTLPTraceExporter(
     otlpHeaders
         ? {
-            url: `${env.OTEL_EXPORTER_OTLP_ENDPOINT}/v1/traces`,
-            headers: otlpHeaders,
-        }
+              url: `${env.OTEL_EXPORTER_OTLP_ENDPOINT}/v1/traces`,
+              headers: otlpHeaders,
+          }
         : {
-            url: `${env.OTEL_EXPORTER_OTLP_ENDPOINT}/v1/traces`,
-        },
+              url: `${env.OTEL_EXPORTER_OTLP_ENDPOINT}/v1/traces`,
+          },
 );
 
 const sdk = new NodeSDK({
-    serviceName: env.OTEL_SERVICE_NAME,
-
+    resource,
     traceExporter,
-
     instrumentations: [
         getNodeAutoInstrumentations(),
     ],
 });
 
 sdk.start();
+
+console.log("OTEL SDK STARTED");
+console.log("OTEL SERVICE NAME:", serviceName);
+console.log(
+    "OTEL EXPORTER:",
+    `${env.OTEL_EXPORTER_OTLP_ENDPOINT}/v1/traces`,
+);
 
 const shutdown = async () => {
     try {

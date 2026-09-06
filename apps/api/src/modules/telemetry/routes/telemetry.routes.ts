@@ -60,9 +60,6 @@ export function createTelemetryRouter() {
     // OTLP telemetry ingestion
     router.post(
         "/v1/traces",
-        (req, _res, next) => {
-            next();
-        },
         createTelemetryAuthMiddleware(
             projectApiKeyService,
         ),
