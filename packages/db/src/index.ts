@@ -12,4 +12,5 @@ export {
     spans,
     projectApiKeys,
     metrics,
+    logs,
 } from "./schema/index.js";

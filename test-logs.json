@@ -1,0 +1,70 @@
+﻿{
+  "resourceLogs": [
+    {
+      "resource": {
+        "attributes": [
+          {
+            "key": "service.name",
+            "value": {
+              "stringValue": "test-logs-service"
+            }
+          },
+          {
+            "key": "deployment.environment",
+            "value": {
+              "stringValue": "development"
+            }
+          }
+        ]
+      },
+      "scopeLogs": [
+        {
+          "scope": {
+            "name": "uptrace-test",
+            "version": "1.0.0"
+          },
+          "logRecords": [
+            {
+              "timeUnixNano": "1757100000000000000",
+              "severityNumber": 9,
+              "severityText": "INFO",
+              "body": {
+                "stringValue": "Hello from Uptrace logs"
+              },
+              "attributes": [
+                {
+                  "key": "database",
+                  "value": {
+                    "stringValue": "postgres"
+                  }
+                },
+                {
+                  "key": "retry",
+                  "value": {
+                    "boolValue": true
+                  }
+                }
+              ]
+            },
+            {
+              "timeUnixNano": "1757100060000000000",
+              "severityNumber": 17,
+              "severityText": "ERROR",
+              "body": {
+                "stringValue": "Database connection failed"
+              },
+              "attributes": [
+                {
+                  "key": "database",
+                  "value": {
+                    "stringValue": "postgres"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

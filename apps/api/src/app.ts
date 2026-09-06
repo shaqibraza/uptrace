@@ -21,6 +21,7 @@ import { createTelemetryRouter } from "./modules/telemetry/routes/telemetry.rout
 import { createServiceRouter } from "./modules/services/routes/service.routes.js";
 import { createMetricRouter } from "./modules/metrics/routes/metric.routes.js";
 import { createMetricIngestionRouter } from "./modules/metrics/routes/metric-ingestion.routes.js";
+import { createLogRouter } from "./modules/observability-logs/routes/log.routes.js";
 
 export const app = express();
 
@@ -79,6 +80,8 @@ app.use(
 app.use(cookieParser());
 
 app.use(createTelemetryRouter());
+
+app.use(createLogRouter());
 
 app.use(createMetricIngestionRouter());
 

@@ -10,3 +10,4 @@ export { traces } from "./traces.js";
 export { spans } from "./spans.js";
 export { projectApiKeys } from "./project-api-keys.js"
 export { metrics } from "./metrics.js";
+export { logs } from "./logs.js";

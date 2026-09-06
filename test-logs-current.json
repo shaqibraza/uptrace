@@ -1,0 +1,64 @@
+{
+  "resourceLogs": [
+    {
+      "resource": {
+        "attributes": [
+          {
+            "key": "service.name",
+            "value": {
+              "stringValue": "uptrace-api"
+            }
+          },
+          {
+            "key": "deployment.environment",
+            "value": {
+              "stringValue": "production"
+            }
+          }
+        ]
+      },
+      "scopeLogs": [
+        {
+          "scope": {
+            "name": "uptrace-test",
+            "version": "1.0.0"
+          },
+          "logRecords": [
+            {
+              "timeUnixNano": "1788692075706000000",
+              "severityNumber": 9,
+              "severityText": "INFO",
+              "body": {
+                "stringValue": "Real log received from Uptrace API"
+              },
+              "attributes": [
+                {
+                  "key": "endpoint",
+                  "value": {
+                    "stringValue": "/v1/logs"
+                  }
+                }
+              ]
+            },
+            {
+              "timeUnixNano": "1788692015706000000",
+              "severityNumber": 17,
+              "severityText": "ERROR",
+              "body": {
+                "stringValue": "Test error log from Uptrace"
+              },
+              "attributes": [
+                {
+                  "key": "error.type",
+                  "value": {
+                    "stringValue": "TestError"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
