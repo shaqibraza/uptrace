@@ -1,6 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import {
+    useEffect,
+    useRef,
+    useState,
+} from "react";
+
 import {
     Bell,
     Check,
@@ -14,6 +19,7 @@ import {
     Settings as SettingsIcon,
     Shield,
     User,
+    Upload,
 } from "lucide-react";
 
 import { useAuthStore } from "../../../stores/auth.store";
@@ -182,9 +188,41 @@ export default function SettingsPage() {
 
 function GeneralSettings() {
     const user = useAuthStore((state) => state.user);
+    const updateName = useAuthStore(
+        (state) => state.updateName,
+    );
+    const updateProfileImage = useAuthStore(
+        (state) => state.updateProfileImage,
+    );
+    const isUpdatingName = useAuthStore(
+        (state) => state.isUpdatingName,
+    );
+    const isUpdatingProfileImage = useAuthStore(
+        (state) => state.isUpdatingProfileImage,
+    );
+    const authError = useAuthStore(
+        (state) => state.error,
+    );
+
+    const [name, setName] = useState(
+        user?.name ?? "",
+    );
+    const [nameSaved, setNameSaved] =
+        useState(false);
+    const [imageError, setImageError] =
+        useState<string | null>(null);
+
+    const fileInputRef =
+        useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        setName(user?.name ?? "");
+    }, [user?.name]);
 
     const userName = user?.name ?? "—";
     const userEmail = user?.email ?? "—";
+    const profileImageUrl =
+        user?.profileImageUrl ?? null;
 
     const initials =
         user?.name
@@ -192,8 +230,81 @@ function GeneralSettings() {
             .split(/\s+/)
             .filter(Boolean)
             .slice(0, 2)
-            .map((part) => part[0]?.toUpperCase())
+            .map((part) =>
+                part[0]?.toUpperCase(),
+            )
             .join("") || "U";
+
+    const handleNameSave = async () => {
+        const trimmedName = name.trim();
+
+        if (!trimmedName) {
+            return;
+        }
+
+        if (trimmedName === user?.name) {
+            setNameSaved(true);
+
+            setTimeout(() => {
+                setNameSaved(false);
+            }, 1800);
+
+            return;
+        }
+
+        const success =
+            await updateName(trimmedName);
+
+        if (success) {
+            setNameSaved(true);
+
+            setTimeout(() => {
+                setNameSaved(false);
+            }, 1800);
+        }
+    };
+
+    const handleProfileImageChange = async (
+        event: React.ChangeEvent<HTMLInputElement>,
+    ) => {
+        const file =
+            event.target.files?.[0];
+
+        if (!file) {
+            return;
+        }
+
+        setImageError(null);
+
+        if (!file.type.startsWith("image/")) {
+            setImageError(
+                "Please select a valid image file.",
+            );
+
+            event.target.value = "";
+            return;
+        }
+
+        if (file.size > 5 * 1024 * 1024) {
+            setImageError(
+                "Profile image must be smaller than 5 MB.",
+            );
+
+            event.target.value = "";
+            return;
+        }
+
+        const success =
+            await updateProfileImage(file);
+
+        if (!success) {
+            setImageError(
+                "Failed to update profile image. Please try again.",
+            );
+        }
+
+        event.target.value = "";
+    };
 
     return (
         <div className="space-y-6">
@@ -201,9 +312,26 @@ function GeneralSettings() {
                 title="Profile"
                 description="Your personal account information."
             >
+                {/* Profile image - separate functionality */}
                 <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-                    <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-zinc-800 bg-zinc-900 text-lg font-semibold text-zinc-400">
-                        {initials}
+                    <div className="relative h-16 w-16 shrink-0">
+                        <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border border-zinc-800 bg-zinc-900 text-lg font-semibold text-zinc-400">
+                            {profileImageUrl ? (
+                                <img
+                                    src={profileImageUrl}
+                                    alt={userName}
+                                    className="h-full w-full object-cover"
+                                />
+                            ) : (
+                                initials
+                            )}
+                        </div>
+
+                        {isUpdatingProfileImage && (
+                            <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/70">
+                                <div className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-600 border-t-zinc-200" />
+                            </div>
+                        )}
                     </div>
 
                     <div>
@@ -215,21 +343,91 @@ function GeneralSettings() {
                             {userEmail}
                         </p>
 
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept="image/*"
+                            onChange={
+                                handleProfileImageChange
+                            }
+                            className="hidden"
+                        />
+
                         <button
                             type="button"
-                            className="mt-3 text-[10px] text-zinc-500 hover:text-zinc-300"
+                            disabled={
+                                isUpdatingProfileImage
+                            }
+                            onClick={() =>
+                                fileInputRef.current?.click()
+                            }
+                            className="mt-3 flex items-center gap-1.5 text-[10px] text-zinc-500 transition-colors hover:text-zinc-300 disabled:cursor-not-allowed disabled:opacity-50"
                         >
-                            Change profile image →
+                            <Upload className="h-3 w-3" />
+
+                            {isUpdatingProfileImage
+                                ? "Uploading..."
+                                : "Change profile image →"}
                         </button>
+
+                        {imageError && (
+                            <p className="mt-2 text-[10px] text-red-500">
+                                {imageError}
+                            </p>
+                        )}
                     </div>
                 </div>
 
-                <div className="mt-6 grid gap-5 sm:grid-cols-2">
-                    <InputField
-                        label="Name"
-                        value={userName}
-                    />
+                {/* Name - separate functionality */}
+                <div className="mt-6">
+                    <div className="max-w-xl">
+                        <InputField
+                            label="Name"
+                            value={name}
+                            onChange={setName}
+                            disabled={isUpdatingName}
+                        />
+                    </div>
 
+                    <div className="mt-3 flex items-center gap-3">
+                        <button
+                            type="button"
+                            disabled={
+                                isUpdatingName ||
+                                !name.trim()
+                            }
+                            onClick={handleNameSave}
+                            className="flex h-9 items-center gap-2 rounded-lg bg-zinc-100 px-4 text-xs font-medium text-black transition-colors hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                            {isUpdatingName ? (
+                                <>
+                                    <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-zinc-500 border-t-black" />
+                                    Saving...
+                                </>
+                            ) : nameSaved ? (
+                                <>
+                                    <Check className="h-3.5 w-3.5" />
+                                    Saved
+                                </>
+                            ) : (
+                                <>
+                                    <Save className="h-3.5 w-3.5" />
+                                    Save name
+                                </>
+                            )}
+                        </button>
+
+                        {authError &&
+                            !isUpdatingProfileImage && (
+                                <p className="text-[10px] text-red-500">
+                                    {authError}
+                                </p>
+                            )}
+                    </div>
+                </div>
+
+                {/* Email - read only */}
+                <div className="mt-5 max-w-xl">
                     <InputField
                         label="Email"
                         value={userEmail}
@@ -420,7 +618,7 @@ function NotificationSettings() {
                 <div className="space-y-3">
                     <ChannelRow
                         name="Email"
-                        value="shaqib@example.com"
+                        value="Your account email"
                         enabled
                     />
 
@@ -562,7 +760,9 @@ function SettingsSection({
                 </p>
             </div>
 
-            <div className="p-5">{children}</div>
+            <div className="p-5">
+                {children}
+            </div>
         </section>
     );
 }
@@ -584,9 +784,10 @@ function SettingTab({
             onClick={onClick}
             className={`
                 flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-xs transition-colors
-                ${active
-                    ? "bg-zinc-900 text-zinc-200"
-                    : "text-zinc-600 hover:bg-zinc-900/50 hover:text-zinc-400"
+                ${
+                    active
+                        ? "bg-zinc-900 text-zinc-200"
+                        : "text-zinc-600 hover:bg-zinc-900/50 hover:text-zinc-400"
                 }
             `}
         >
@@ -599,12 +800,14 @@ function SettingTab({
 function InputField({
     label,
     value,
+    onChange,
     placeholder,
     disabled,
     password,
 }: {
     label: string;
     value: string;
+    onChange?: (value: string) => void;
     placeholder?: string;
     disabled?: boolean;
     password?: boolean;
@@ -617,9 +820,18 @@ function InputField({
 
             <input
                 type={password ? "password" : "text"}
-                defaultValue={value}
+                value={value}
+                onChange={
+                    onChange
+                        ? (event) =>
+                              onChange(
+                                  event.target.value,
+                              )
+                        : undefined
+                }
                 placeholder={placeholder}
                 disabled={disabled}
+                readOnly={!onChange}
                 className="
                     h-10 w-full rounded-lg
                     border border-zinc-900
@@ -630,6 +842,7 @@ function InputField({
                     focus:border-zinc-700
                     disabled:cursor-not-allowed
                     disabled:opacity-50
+                    read-only:cursor-default
                 "
             />
         </div>
@@ -677,15 +890,19 @@ function AppearanceCard({
             type="button"
             className={`
                 rounded-lg border p-4 text-left transition-colors
-                ${active
-                    ? "border-zinc-700 bg-zinc-900"
-                    : "border-zinc-900 bg-black hover:border-zinc-800"
+                ${
+                    active
+                        ? "border-zinc-700 bg-zinc-900"
+                        : "border-zinc-900 bg-black hover:border-zinc-800"
                 }
             `}
         >
             <Icon
-                className={`h-4 w-4 ${active ? "text-zinc-300" : "text-zinc-700"
-                    }`}
+                className={`h-4 w-4 ${
+                    active
+                        ? "text-zinc-300"
+                        : "text-zinc-700"
+                }`}
             />
 
             <p className="mt-3 text-xs text-zinc-400">
@@ -735,16 +952,21 @@ function ToggleRow({
                 onClick={() => setActive(!active)}
                 className={`
                     relative h-5 w-9 shrink-0 rounded-full transition-colors
-                    ${active ? "bg-zinc-300" : "bg-zinc-800"}
+                    ${
+                        active
+                            ? "bg-zinc-300"
+                            : "bg-zinc-800"
+                    }
                 `}
                 aria-label={`Toggle ${title}`}
             >
                 <span
                     className={`
                         absolute top-1 h-3 w-3 rounded-full transition-transform
-                        ${active
-                            ? "translate-x-5 bg-black"
-                            : "translate-x-1 bg-zinc-500"
+                        ${
+                            active
+                                ? "translate-x-5 bg-black"
+                                : "translate-x-1 bg-zinc-500"
                         }
                     `}
                 />
@@ -775,12 +997,15 @@ function ChannelRow({
             </div>
 
             <span
-                className={`text-[10px] ${enabled
+                className={`text-[10px] ${
+                    enabled
                         ? "text-emerald-600"
                         : "text-zinc-800"
-                    }`}
+                }`}
             >
-                {enabled ? "Connected" : "Not configured"}
+                {enabled
+                    ? "Connected"
+                    : "Not configured"}
             </span>
         </div>
     );

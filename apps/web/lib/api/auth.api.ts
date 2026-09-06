@@ -18,12 +18,11 @@ export async function register(
 ): Promise<RegisterResponse> {
     const response = await api.post<RegisterResponse>(
         "/auth/register",
-        payload
+        payload,
     );
 
     return response.data;
-};
-
+}
 
 export type VerifyEmailResponse = {
     success: true;
@@ -38,13 +37,17 @@ export type VerifyEmailResponse = {
 };
 
 export async function verifyEmail(
-    token: string
+    token: string,
 ): Promise<VerifyEmailResponse> {
-    const response = await api.get<VerifyEmailResponse>("/auth/verify-email", {
-        params: {
-            token,
-        },
-    });
+    const response =
+        await api.get<VerifyEmailResponse>(
+            "/auth/verify-email",
+            {
+                params: {
+                    token,
+                },
+            },
+        );
 
     return response.data;
 }
@@ -61,12 +64,16 @@ export type ResendVerificationResponse = {
 };
 
 export async function resendVerificationEmail(
-    payload: ResendVerificationPayload
+    payload: ResendVerificationPayload,
 ): Promise<ResendVerificationResponse> {
-    const response = await api.post<ResendVerificationResponse>("/auth/resend-verification", payload);
+    const response =
+        await api.post<ResendVerificationResponse>(
+            "/auth/resend-verification",
+            payload,
+        );
 
     return response.data;
-};
+}
 
 export type LoginPayload = {
     email: string;
@@ -77,6 +84,7 @@ export type LoginUser = {
     id: string;
     name: string;
     email: string;
+    profileImageUrl: string | null;
     emailVerifiedAt: string | null;
 };
 
@@ -89,16 +97,16 @@ export type LoginResponse = {
 };
 
 export async function login(
-    payload: LoginPayload
+    payload: LoginPayload,
 ): Promise<LoginResponse> {
-    const response = await api
-        .post(
+    const response =
+        await api.post<LoginResponse>(
             "/auth/login",
-            payload
+            payload,
         );
 
     return response.data;
-};
+}
 
 export type RefreshResponse = {
     success: true;
@@ -114,7 +122,7 @@ export async function refresh(): Promise<RefreshResponse> {
         );
 
     return response.data;
-};
+}
 
 export type MeResponse = {
     success: true;
@@ -137,6 +145,55 @@ export async function getCurrentUser(
         );
 
     return response.data;
+};
+
+export type UpdateNamePayload = {
+    name: string;
+};
+
+export type UpdateNameResponse = {
+    success: true;
+    data: {
+        user: LoginUser;
+    };
+};
+
+export async function updateName(
+    payload: UpdateNamePayload,
+): Promise<UpdateNameResponse> {
+    const response =
+        await api.patch<UpdateNameResponse>(
+            "/auth/me/name",
+            payload,
+        );
+
+    return response.data;
+}
+
+export type UpdateProfileImageResponse = {
+    success: true;
+    data: {
+        user: LoginUser;
+    };
+};
+
+export async function updateProfileImage(
+    file: File,
+): Promise<UpdateProfileImageResponse> {
+    const formData = new FormData();
+
+    formData.append(
+        "profileImage",
+        file,
+    );
+
+    const response =
+        await api.post<UpdateProfileImageResponse>(
+            "/auth/me/profile-image",
+            formData,
+        );
+
+    return response.data;
 }
 
 export type LogoutResponse = {
@@ -150,4 +207,4 @@ export async function logout(): Promise<LogoutResponse> {
         );
 
     return response.data;
-};
+}

@@ -13,8 +13,14 @@ import { useAuthStore } from "../../stores/auth.store";
 import { Footer } from "../components/landing/Footer";
 
 export default function ProfilePage() {
-    const user = useAuthStore((state) => state.user);
-    const status = useAuthStore((state) => state.status);
+    const user = useAuthStore(
+        (state) => state.user,
+    );
+
+    const status = useAuthStore(
+        (state) => state.status,
+    );
+
     const isInitializing = useAuthStore(
         (state) => state.isInitializing,
     );
@@ -36,7 +42,10 @@ export default function ProfilePage() {
         );
     }
 
-    if (status !== "authenticated" || !user) {
+    if (
+        status !== "authenticated" ||
+        !user
+    ) {
         return (
             <div className="min-h-screen bg-black text-zinc-100">
                 <Navbar />
@@ -69,6 +78,8 @@ export default function ProfilePage() {
                         </Link>
                     </div>
                 </main>
+
+                <Footer />
             </div>
         );
     }
@@ -81,6 +92,9 @@ export default function ProfilePage() {
             .join("")
             .slice(0, 2)
             .toUpperCase() ?? "";
+
+    const profileImageUrl =
+        user.profileImageUrl ?? null;
 
     return (
         <div className="min-h-screen bg-black text-zinc-100">
@@ -133,18 +147,31 @@ export default function ProfilePage() {
                                 sm:items-center
                             "
                         >
+                            {/* Profile image */}
                             <div
                                 className="
                                     flex h-16 w-16
                                     shrink-0
                                     items-center justify-center
+                                    overflow-hidden
                                     rounded-full
                                     bg-zinc-800
                                     text-lg font-semibold
                                     text-zinc-300
                                 "
                             >
-                                {initials}
+                                {profileImageUrl ? (
+                                    <img
+                                        src={profileImageUrl}
+                                        alt={
+                                            user.name ||
+                                            "Profile"
+                                        }
+                                        className="h-full w-full object-cover"
+                                    />
+                                ) : (
+                                    initials
+                                )}
                             </div>
 
                             <div className="min-w-0">
@@ -227,6 +254,7 @@ export default function ProfilePage() {
                     </div>
                 </div>
             </main>
+
             <Footer />
         </div>
     );

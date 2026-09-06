@@ -6,13 +6,27 @@ import {
 } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
-    id: uuid("id").defaultRandom().primaryKey(),
+    id: uuid("id")
+        .defaultRandom()
+        .primaryKey(),
 
-    name: varchar("name", { length: 100 }),
+    name: varchar("name", {
+        length: 100,
+    }),
 
-    email: varchar("email", { length: 255 }).notNull().unique(),
+    email: varchar("email", {
+        length: 255,
+    })
+        .notNull()
+        .unique(),
 
-    passwordHash: varchar("password_hash", { length: 255 }),
+    profileImageUrl: varchar("profile_image_url", {
+        length: 500,
+    }),
+
+    passwordHash: varchar("password_hash", {
+        length: 255,
+    }),
 
     emailVerifiedAt: timestamp("email_verified_at", {
         withTimezone: true,

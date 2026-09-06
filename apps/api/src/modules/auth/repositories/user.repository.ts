@@ -1,7 +1,8 @@
 import { eq } from "drizzle-orm";
-import { users } from "@uptrace/db";
-import { db } from "../../../db.js";
 
+import { users } from "@uptrace/db";
+
+import { db } from "../../../db.js";
 
 export class UserRepository {
     async findByEmail(email: string) {
@@ -12,7 +13,7 @@ export class UserRepository {
             .limit(1);
 
         return result[0] ?? null;
-    };
+    }
 
     async findById(userId: string) {
         const result = await db
@@ -20,27 +21,28 @@ export class UserRepository {
                 id: users.id,
                 name: users.name,
                 email: users.email,
+                profileImageUrl: users.profileImageUrl,
                 emailVerifiedAt: users.emailVerifiedAt,
-                createdAt: users.createdAt
+                createdAt: users.createdAt,
             })
             .from(users)
             .where(eq(users.id, userId))
             .limit(1);
 
         return result[0] ?? null;
-    };
+    }
 
     async create(data: {
         name: string;
         email: string;
-        passwordHash: string
+        passwordHash: string;
     }) {
         const result = await db
             .insert(users)
             .values({
                 name: data.name,
                 email: data.email,
-                passwordHash: data.passwordHash
+                passwordHash: data.passwordHash,
             })
             .returning();
 
@@ -51,22 +53,71 @@ export class UserRepository {
         }
 
         return user;
-    };
+    }
 
-    async markEmailVerified(userId: string){
+    async markEmailVerified(userId: string) {
         const result = await db
             .update(users)
             .set({
                 emailVerifiedAt: new Date(),
-                updatedAt: new Date()
+                updatedAt: new Date(),
             })
             .where(eq(users.id, userId))
             .returning({
                 id: users.id,
                 email: users.email,
-                emailVerifiedAt: users.emailVerifiedAt
+                emailVerifiedAt: users.emailVerifiedAt,
             });
 
         return result[0] ?? null;
-    };
-};
+    }
+
+    /**
+     * Update only the user's name.
+     */
+    async updateName(userId: string, name: string) {
+        const result = await db
+            .update(users)
+            .set({
+                name,
+                updatedAt: new Date(),
+            })
+            .where(eq(users.id, userId))
+            .returning({
+                id: users.id,
+                name: users.name,
+                email: users.email,
+                profileImageUrl: users.profileImageUrl,
+                emailVerifiedAt: users.emailVerifiedAt,
+                createdAt: users.createdAt,
+            });
+
+        return result[0] ?? null;
+    }
+
+    /**
+     * Update only the user's profile image.
+     */
+    async updateProfileImage(
+        userId: string,
+        profileImageUrl: string | null,
+    ) {
+        const result = await db
+            .update(users)
+            .set({
+                profileImageUrl,
+                updatedAt: new Date(),
+            })
+            .where(eq(users.id, userId))
+            .returning({
+                id: users.id,
+                name: users.name,
+                email: users.email,
+                profileImageUrl: users.profileImageUrl,
+                emailVerifiedAt: users.emailVerifiedAt,
+                createdAt: users.createdAt,
+            });
+
+        return result[0] ?? null;
+    }
+}
