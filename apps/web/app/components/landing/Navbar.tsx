@@ -297,7 +297,7 @@ export function Navbar() {
                                                 </Link>
 
                                                 <Link
-                                                    href="/settings"
+                                                    href="/dashboard/settings"
                                                     onClick={() =>
                                                         setIsProfileOpen(
                                                             false,
