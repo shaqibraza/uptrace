@@ -48,7 +48,7 @@ const monitoringNavigation = [
     },
     {
         label: "Logs",
-        href: "/dashboard/logs",
+        href: "/dashboard/telemetry-logs",
         icon: Terminal,
     },
 ];
