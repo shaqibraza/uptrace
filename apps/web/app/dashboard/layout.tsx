@@ -5,7 +5,8 @@ import { Topbar } from "./components/Topbar";
 import { ProtectedRoute } from "../components/auth/ProtectedRoute";
 
 export const metadata: Metadata = {
-    title: "Dashboard",
+    title: "Dashboard | Uptrace - API and website monitoring!",
+    description: "See what your applications are really doing",
 };
 
 export default function DashboardLayout({
