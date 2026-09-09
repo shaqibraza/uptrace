@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { Sidebar } from "./components/Sidebar";
 import { Topbar } from "./components/Topbar";
+import { ProtectedRoute } from "../components/auth/ProtectedRoute";
 
 export const metadata: Metadata = {
     title: "Dashboard",
@@ -13,16 +14,18 @@ export default function DashboardLayout({
     children: React.ReactNode;
 }>) {
     return (
-        <div className="min-h-screen bg-black text-zinc-100">
-            <Sidebar />
+        <ProtectedRoute>
+            <div className="min-h-screen bg-black text-zinc-100">
+                <Sidebar />
 
-            <Topbar />
+                <Topbar />
 
-            <main className="lg:ml-64">
-                <div className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8">
-                    {children}
-                </div>
-            </main>
-        </div>
+                <main className="lg:ml-64">
+                    <div className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8">
+                        {children}
+                    </div>
+                </main>
+            </div>
+        </ProtectedRoute>
     );
 }
