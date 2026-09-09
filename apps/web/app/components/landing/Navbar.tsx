@@ -113,7 +113,7 @@ export function Navbar() {
                                 text-zinc-950
                             "
                         >
-                            U
+                            M
                         </div>
 
                         <span
