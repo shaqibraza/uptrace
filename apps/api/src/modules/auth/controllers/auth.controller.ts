@@ -129,11 +129,15 @@ export class AuthController {
             const result =
                 await this.authService.login(input);
 
+            const isProduction =
+                env.NODE_ENV === "production";
+
             res.clearCookie("refreshToken", {
                 httpOnly: true,
-                secure:
-                    env.NODE_ENV === "production",
-                sameSite: "lax",
+                secure: isProduction,
+                sameSite: isProduction
+                    ? "none"
+                    : "lax",
                 path: "/auth",
             });
 
@@ -142,9 +146,10 @@ export class AuthController {
                 result.refreshToken,
                 {
                     httpOnly: true,
-                    secure:
-                        env.NODE_ENV === "production",
-                    sameSite: "lax",
+                    secure: isProduction,
+                    sameSite: isProduction
+                        ? "none"
+                        : "lax",
                     path: "/auth",
                     expires: new Date(
                         Date.now() +
@@ -193,14 +198,18 @@ export class AuthController {
                     refreshToken,
                 );
 
+            const isProduction =
+                env.NODE_ENV === "production";
+
             res.cookie(
                 "refreshToken",
                 result.refreshToken,
                 {
                     httpOnly: true,
-                    secure:
-                        env.NODE_ENV === "production",
-                    sameSite: "lax",
+                    secure: isProduction,
+                    sameSite: isProduction
+                        ? "none"
+                        : "lax",
                     path: "/auth",
                     expires: new Date(
                         Date.now() +
@@ -347,11 +356,15 @@ export class AuthController {
                 );
             }
 
+            const isProduction =
+                env.NODE_ENV === "production";
+
             res.clearCookie("refreshToken", {
                 httpOnly: true,
-                secure:
-                    env.NODE_ENV === "production",
-                sameSite: "lax",
+                secure: isProduction,
+                sameSite: isProduction
+                    ? "none"
+                    : "lax",
                 path: "/auth",
             });
 
